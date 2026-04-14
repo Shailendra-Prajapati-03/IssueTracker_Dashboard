@@ -1,0 +1,436 @@
+{% extends "dashboard/base_premium.html" %}
+
+{% block title %}Upload CSV - Issue Tracker Pro{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-6 animate-fade-in">
+        <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <i class="ph ph-cloud-arrow-up text-white text-2xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Upload File</h1>
+        <p class="mt-1.5 text-slate-500 dark:text-slate-400 text-sm">Import your CSV or Excel file for analysis and tracking</p>
+    </div>
+
+    <!-- Upload Card -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 animate-slide-up">
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+            
+            <!-- Drop Zone -->
+            <div id="dropZone" class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center transition-all hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 cursor-pointer">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                    <i class="ph ph-upload-simple text-2xl text-slate-400"></i>
+                </div>
+                <h3 class="text-base font-semibold text-slate-900 dark:text-white mb-1.5">Drop your file here</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">CSV or Excel (.xlsx, .xls) files supported</p>
+                <input type="file" name="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" required>
+                <button type="button" onclick="document.getElementById('fileInput').click()" class="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                    <i class="ph ph-folder-open mr-2"></i>Select File
+                </button>
+            </div>
+
+            <!-- File Info -->
+            <div id="fileInfo" class="hidden mt-5 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                <div class="flex items-center">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center mr-3">
+                        <i class="ph ph-file-csv text-emerald-600 dark:text-emerald-400 text-lg" id="fileIcon"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-medium text-slate-900 dark:text-white text-sm" id="fileName"></p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400" id="fileSize"></p>
+                    </div>
+                    <button type="button" onclick="clearFile()" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Connection Name -->
+            <div class="mb-5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Connection Name (Optional)</label>
+                <input type="text" name="connection_name" list="connectionNames" id="connectionNameInput"
+                    class="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="e.g., Testing, Sales, Production...">
+                <datalist id="connectionNames">
+                    <option value="Testing">
+                    <option value="Sales">
+                    <option value="Production">
+                    <option value="Marketing">
+                    <option value="Development">
+                </datalist>
+                <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400 italic">
+                    Note: If left blank, file name will be used. Connection names must be unique.
+                </p>
+            </div>
+
+            <!-- Sheet Selector (for Excel files) -->
+            <div id="sheetSelector" class="hidden mt-5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Select Sheet</label>
+                <select name="sheet_name" id="sheetSelect" onchange="validateSelectedSheet()" class="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Sheets (Process everything)</option>
+                </select>
+                <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400 italic">
+                    Note: Select a specific sheet or leave as "All Sheets" to process all tabs.
+                </p>
+            </div>
+
+            <!-- Column Validation Error -->
+            <div id="columnError" class="hidden mt-5 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
+                <div class="flex items-start">
+                    <i class="ph ph-warning-circle text-rose-500 text-lg mr-2 mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-semibold text-rose-700 dark:text-rose-400">Column Match Error</p>
+                        <p class="text-xs text-rose-600 dark:text-rose-500 mt-1" id="columnErrorMessage"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sheet Preview -->
+            <div id="sheetPreview" class="hidden mt-5">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Sheet Preview</h4>
+                    <span id="previewStats" class="text-xs text-slate-500 dark:text-slate-400"></span>
+                </div>
+                <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                    <table class="w-full text-xs" id="previewTable">
+                        <thead class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                            <tr id="previewHeader"></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-700" id="previewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-5 flex flex-col sm:flex-row gap-3">
+                <button type="submit" id="uploadBtn" disabled class="flex-1 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
+                    <i class="ph ph-cloud-arrow-up mr-2"></i>Upload and Process
+                </button>
+                <a href="{% url 'landing_page' %}" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Instructions -->
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- CSV Requirements -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 animate-slide-up" style="animation-delay: 0.1s;">
+            <div class="flex items-center mb-3">
+                <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-2.5">
+                    <i class="ph ph-info text-blue-600 dark:text-blue-400 text-lg"></i>
+                </div>
+                <h3 class="text-base font-semibold text-slate-900 dark:text-white">CSV Requirements</h3>
+            </div>
+            <ul class="space-y-2.5 text-sm">
+                <li class="flex items-start">
+                    <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300">Ensure your file contains a header row with meaningful column names.</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
+                    <div class="text-slate-600 dark:text-slate-300">
+                        <p class="font-bold mb-1">Required Columns & Acceptable Names:</p>
+                        <ul class="space-y-1 mt-1 ml-1">
+                            <li>• <strong>Issue ID</strong> (ID, Number, No, Ticket Number)</li>
+                            <li>• <strong>Component Name</strong> (Component, Section, Module)</li>
+                            <li>• <strong>Issue Message</strong> (Error, Issue, Message, Bug Description)</li>
+                            <li>• <strong>MCM Comments</strong> (Comments, Status, Fixed, Test, Remarks, Notes)</li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300">Optional columns: <strong>"Screenshot URL", "Capanicus Comment", "Planned Hours", "Utilized Hours", "Resource", "Priority"</strong></span>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-info text-blue-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300">"MCM Comments" column is used to automatically classify issue status (Fixed, Pending, Unknown).</span>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Excel Requirements -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 animate-slide-up" style="animation-delay: 0.2s;">
+            <div class="flex items-center mb-3">
+                <div class="w-9 h-9 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-2.5">
+                    <i class="ph ph-info text-green-600 dark:text-green-400 text-lg"></i>
+                </div>
+                <h3 class="text-base font-semibold text-slate-900 dark:text-white">Excel Requirements</h3>
+            </div>
+            <ul class="space-y-2.5 text-sm">
+                <li class="flex items-start">
+                    <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300">Supports both <strong>.xlsx</strong> (Modern) and <strong>.xls</strong> (Legacy) formats.</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300">Process <strong>Multiple Tabs</strong>: Select "All Sheets" to import data from all tabs at once.</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300"><strong>Smart Mapping</strong>: System automatically detects columns like "ID", "Bug", "Section", etc.</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-info text-blue-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300"><strong>Live Preview</strong>: View your data and check for errors before final processing.</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="ph ph-warning text-amber-500 mt-0.5 mr-2.5"></i>
+                    <span class="text-slate-600 dark:text-slate-300">Ensure the first row of each sheet contains valid column headers.</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const dropZone = document.getElementById('dropZone');
+    let currentSheetInfo = {};
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.classList.remove('hidden');
+                uploadBtn.disabled = false;
+                dropZone.classList.add('border-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-900/10');
+                
+                // Update icon based on file type
+                const fileIcon = document.getElementById('fileIcon');
+                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    fileIcon.className = 'ph ph-file-xls text-emerald-600 dark:text-emerald-400 text-xl';
+                } else {
+                    fileIcon.className = 'ph ph-file-csv text-emerald-600 dark:text-emerald-400 text-xl';
+                }
+                
+                // If Excel file, show sheet selector
+                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    analyzeExcel(file);
+                }
+            }
+        });
+    }
+
+    // Analyze Excel file and show sheets
+    function analyzeExcel(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('action', 'analyze');
+        
+        fetch('{% url "upload_csv" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Store sheet info for validation
+                currentSheetInfo = data.sheet_info || {};
+                
+                // Show sheet selector
+                const sheetSelect = document.getElementById('sheetSelect');
+                sheetSelect.innerHTML = '<option value="">All Sheets (Process everything)</option>';
+                data.sheets.forEach(sheet => {
+                    const option = document.createElement('option');
+                    option.value = sheet;
+                    option.textContent = sheet;
+                    sheetSelect.appendChild(option);
+                });
+                document.getElementById('sheetSelector').classList.remove('hidden');
+                
+                // Show preview of first sheet
+                showSheetPreview(data.preview);
+                
+                // Initial validation
+                validateSelectedSheet();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Show sheet preview
+    function showSheetPreview(preview) {
+        const previewDiv = document.getElementById('sheetPreview');
+        const headerRow = document.getElementById('previewHeader');
+        const body = document.getElementById('previewBody');
+        const stats = document.getElementById('previewStats');
+        const columnError = document.getElementById('columnError');
+        const columnErrorMessage = document.getElementById('columnErrorMessage');
+        
+        // Handle CSV validation (where sheet_info doesn't exist)
+        if (preview.missing && preview.missing.length > 0) {
+            columnErrorMessage.textContent = `Column name not matching, required this column: ${preview.missing.join(', ')}`;
+            columnError.classList.remove('hidden');
+            uploadBtn.disabled = true;
+        } else if (!preview.missing) {
+             // Excel handle via validateSelectedSheet
+        } else {
+            columnError.classList.add('hidden');
+            uploadBtn.disabled = false;
+        }
+
+        // Clear previous
+        headerRow.innerHTML = '';
+        body.innerHTML = '';
+        
+        // Add headers
+        preview.columns.forEach(col => {
+            const th = document.createElement('th');
+            th.className = 'px-3 py-2 text-left font-medium';
+            th.textContent = col;
+            headerRow.appendChild(th);
+        });
+        
+        // Add rows
+        preview.rows.forEach(row => {
+            const tr = document.createElement('tr');
+            preview.columns.forEach(col => {
+                const td = document.createElement('td');
+                td.className = 'px-3 py-2 text-slate-600 dark:text-slate-300';
+                td.textContent = row[col] || '';
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        });
+        
+        // Update stats
+        stats.textContent = `Showing ${preview.rows.length} of ${preview.total_rows} rows | ${preview.columns.length} columns`;
+        previewDiv.classList.remove('hidden');
+    }
+
+    // Global scope helper for onclick attributes
+    window.validateSelectedSheet = function() {
+        const sheetSelect = document.getElementById('sheetSelect');
+        const selectedSheet = sheetSelect.value;
+        const columnError = document.getElementById('columnError');
+        const columnErrorMessage = document.getElementById('columnErrorMessage');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        if (selectedSheet === '') {
+            // Check all sheets
+            let allMissing = [];
+            let someValid = false;
+            for (let s in currentSheetInfo) {
+                if (currentSheetInfo[s].missing.length > 0) {
+                    allMissing.push(`${s}: ${currentSheetInfo[s].missing.join(', ')}`);
+                } else {
+                    someValid = true;
+                }
+            }
+            
+            if (!someValid) {
+                columnErrorMessage.textContent = `None of the sheets match required columns. Missing in sheets:\n${allMissing.join('\n')}`;
+                columnError.classList.remove('hidden');
+                uploadBtn.disabled = true;
+            } else if (allMissing.length > 0) {
+                columnErrorMessage.textContent = `Warning: Some sheets will be skipped due to missing columns:\n${allMissing.join('\n')}`;
+                columnError.classList.remove('hidden');
+                uploadBtn.disabled = false;
+            } else {
+                columnError.classList.add('hidden');
+                uploadBtn.disabled = false;
+            }
+        } else if (currentSheetInfo[selectedSheet]) {
+            const missing = currentSheetInfo[selectedSheet].missing;
+            if (missing.length > 0) {
+                columnErrorMessage.textContent = `Column name not matching, required this column: ${missing.join(', ')}`;
+                columnError.classList.remove('hidden');
+                uploadBtn.disabled = true;
+            } else {
+                columnError.classList.add('hidden');
+                uploadBtn.disabled = false;
+            }
+        }
+    }
+
+    window.clearFile = function() {
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const dropZone = document.getElementById('dropZone');
+        
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        document.getElementById('sheetSelector').classList.add('hidden');
+        document.getElementById('sheetPreview').classList.add('hidden');
+        document.getElementById('columnError').classList.add('hidden');
+        uploadBtn.disabled = true;
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-900/10');
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    if (dropZone) {
+        // Drag and drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-900/10');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            if (!fileInput.files.length) {
+                dropZone.classList.remove('border-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-900/10');
+            }
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length && (files[0].name.endsWith('.csv') || files[0].name.endsWith('.xlsx') || files[0].name.endsWith('.xls'))) {
+                fileInput.files = files;
+                const file = files[0];
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.classList.remove('hidden');
+                uploadBtn.disabled = false;
+                
+                // Update icon
+                const fileIcon = document.getElementById('fileIcon');
+                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    fileIcon.className = 'ph ph-file-xls text-emerald-600 dark:text-emerald-400 text-lg';
+                    analyzeExcel(file);
+                } else {
+                    fileIcon.className = 'ph ph-file-csv text-emerald-600 dark:text-emerald-400 text-lg';
+                }
+            } else {
+                alert('Please upload a CSV or Excel (.xlsx, .xls) file.');
+            }
+        });
+    }
+
+    // Form submission
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function() {
+            uploadBtn.innerHTML = '<i class="ph ph-spinner animate-spin mr-2"></i>Processing...';
+            uploadBtn.disabled = true;
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+Issue ID,MCM Comments,Other Column
+TKT-1001,"The issue has been fixed and verified.",Data 1
+TKT-1002,"This is still pending review.",Data 2
+TKT-1003,"Resolved the bug in production.",Data 3
+TKT-1004,"In progress, currently investigating.",Data 4
+TKT-1005,"Closed the ticket after testing.",Data 5
+TKT-1006,"Not fixed yet, waiting for more info.",Data 6
+TKT-1007,"Done with the implementation.",Data 7
+TKT-1008,"Open for discussion.",Data 8
+TKT-1009,"Unknown status for this one.",Data 9
+TKT-1010,"Working on a fix.",Data 10
+TKT-1011,"Fixed the login issue.",Data 11
+TKT-1012,"Pending database migration.",Data 12
+TKT-1013,"Resolved UI alignment.",Data 13

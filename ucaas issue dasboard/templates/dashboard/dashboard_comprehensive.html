@@ -1,0 +1,609 @@
+{% extends "dashboard/base_premium.html" %}
+
+{% block title %}Issue Performance Report - Issue Tracker Pro{% endblock %}
+
+{% block extra_css %}
+<!-- Global premium select styles are inherited from base_premium.html -->
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">ISSUE PERFORMANCE REPORT</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Track and analyze issue resolution across your projects</p>
+    </div>
+    
+    <!-- Data Source Selectors -->
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <!-- Connection Selector -->
+        <div class="flex items-center gap-1 sm:gap-2">
+            <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">📁 Source:</label>
+            <select onchange="changeFile(this.value)" class="px-3 sm:px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm min-w-[140px] max-w-[200px] truncate shadow-sm hover:border-indigo-400 transition-all cursor-pointer">
+                {% if live_connections %}
+                <optgroup label="Live Connections">
+                    {% for conn in live_connections %}
+                    <option value="{{ conn.id }}" {% if current_connection.id == conn.id %}selected{% endif %}>{{ conn.name }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+                {% if uploaded_files %}
+                <optgroup label="Uploaded Files">
+                    {% for conn in uploaded_files %}
+                    <option value="{{ conn.id }}" {% if current_connection.id == conn.id %}selected{% endif %}>{{ conn.name }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+            </select>
+        </div>
+
+        
+        <!-- Sheet Tabs Dropdown (Only for current file) -->
+        {% if current_connection and sheet_names %}
+        <div class="flex items-center gap-1 sm:gap-2">
+            <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">📑 Tab:</label>
+            <select id="tabSelector" onchange="changeTab(this.value)" class="px-3 sm:px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm min-w-[120px] max-w-[180px] truncate shadow-sm hover:border-indigo-400 transition-all cursor-pointer">
+                <option value="all" {% if not active_sheet or active_sheet == 'all' %}selected{% endif %}>All Tabs</option>
+                {% for sheet in sheet_names %}
+                <option value="{{ sheet }}" {% if sheet == active_sheet %}selected{% endif %}>{{ sheet }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        
+        <!-- Add New Button -->
+        <a href="{% url 'upload_csv' %}" class="px-2 sm:px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs sm:text-sm font-medium transition whitespace-nowrap">
+            <i class="ph ph-plus mr-1"></i> New Upload
+        </a>
+    </div>
+</div>
+
+<!-- Active Sheet Name Display -->
+{% if active_sheet %}
+<div class="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+    <p class="text-sm text-indigo-700 dark:text-indigo-300">
+        <i class="ph ph-file-text mr-2"></i>
+        Currently viewing: <strong class="font-semibold">{{ active_sheet }}</strong>
+    </p>
+</div>
+{% endif %}
+
+<!-- Empty State - No Connections -->
+{% if not current_connection and not uploaded_files %}
+<div class="flex items-center justify-center min-h-[60vh]">
+    <div class="text-center max-w-md">
+        <div class="w-24 h-24 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-3">No Data Available</h2>
+        <p class="text-slate-500 dark:text-slate-400 mb-8">You haven't uploaded any files or connected any live sheets yet. Get started by uploading a file or connecting to a live sheet.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{% url 'upload_csv' %}" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2">
+                <i class="ph ph-cloud-arrow-up"></i> Upload Now
+            </a>
+            <a href="{% url 'connect_sheet' %}" class="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium transition flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                </svg>
+                Connect Live Sheet
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+
+<!-- Top KPI Cards Row -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <!-- Total Issues -->
+    <a href="{% url 'issues_list' %}?connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer" data-stat="total">
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Total Issues</p>
+        <p class="text-xl font-bold text-slate-900 dark:text-white">{{ stats.total_count|default:"0" }}</p>
+    </a>
+    
+    <!-- Fixed Issues -->
+    <a href="{% url 'issues_list' %}?status=Fixed&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all cursor-pointer" data-stat="fixed">
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Fixed Issues</p>
+        <p class="text-xl font-bold text-teal-600">{{ stats.fixed_count|default:"0" }}</p>
+    </a>
+    
+    <!-- Pending Issues -->
+    <a href="{% url 'issues_list' %}?status=Pending&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all cursor-pointer" data-stat="pending">
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Pending Issues</p>
+        <p class="text-xl font-bold text-rose-500">{{ stats.pending_count|default:"0" }}</p>
+    </a>
+    
+    <!-- Unknown Issues -->
+    <a href="{% url 'issues_list' %}?status=Unknown&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all cursor-pointer" data-stat="unknown">
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Unknown Issues</p>
+        <p class="text-xl font-bold text-amber-500">{{ stats.unknown_count|default:"0" }}</p>
+    </a>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    <!-- Team Roles Pie Chart -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-300">Issues by Component</h4>
+            <span class="text-[10px] px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full">{{ stats.total_count|default:"0" }} Total</span>
+        </div>
+        <div class="flex items-start">
+            <div class="w-[40%] relative" style="height: 160px;">
+                <canvas id="teamRolesChart"></canvas>
+            </div>
+            <div class="w-[60%] pl-3 text-[10px]" id="teamRolesLegend">
+                <!-- Legend items with colors - showing actual component names from data -->
+                {% for label in stats.comp_labels|slice:":8" %}
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{% cycle '#ec4899' '#f97316' '#8b5cf6' '#14b8a6' '#3b82f6' '#f59e0b' '#ef4444' '#10b981' %}"></span>
+                        <span class="text-slate-700 dark:text-slate-300 truncate max-w-[80px]" title="{{ label }}">{{ label|default:"Unknown"|truncatechars:12 }}</span>
+                    </div>
+                    <span class="font-semibold text-slate-900 dark:text-white js-comp-count" data-index="{{ forloop.counter0 }}">-</span>
+                </div>
+                {% empty %}
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-pink-500"></span><span class="text-slate-700 dark:text-slate-300">Chats</span></div><span class="font-semibold">12</span>
+                </div>
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span><span class="text-slate-700 dark:text-slate-300">Video Meeting</span></div><span class="font-semibold">8</span>
+                </div>
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span><span class="text-slate-700 dark:text-slate-300">SMS</span></div><span class="font-semibold">15</span>
+                </div>
+                <div class="flex items-center justify-between py-1.5">
+                    <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span><span class="text-slate-700 dark:text-slate-300">Login OTP</span></div><span class="font-semibold">6</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Planned vs Actual Task Completion -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Planned vs. Actual Task Completion by Project</h4>
+        <div class="h-[200px]">
+            <canvas id="plannedActualChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Task Completion Percentage -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Task Completion Rate</h4>
+        <div class="h-[200px] relative flex items-center justify-center">
+            <canvas id="completionGaugeChart"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" data-stat="completion">
+                <span class="text-3xl font-bold text-teal-600">{{ stats.completion_rate|default:"0" }}%</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">Completed</span>
+            </div>
+        </div>
+        <div class="flex justify-center gap-4 mt-2 text-xs">
+            <div class="text-center">
+                <span class="block font-bold text-teal-600">{{ stats.fixed_count|default:"0" }}</span>
+                <span class="text-slate-400">Fixed</span>
+            </div>
+            <div class="text-center">
+                <span class="block font-bold text-rose-500">{{ stats.pending_count|default:"0" }}</span>
+                <span class="text-slate-400">Pending</span>
+            </div>
+            <div class="text-center">
+                <span class="block font-bold text-amber-500">{{ stats.unknown_count|default:"0" }}</span>
+                <span class="text-slate-400">Unknown</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+ 
+
+<!-- Summary + Status Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Tasks Summary Table Section -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Tasks Summary by Resource</h3>
+        </div>
+        <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table class="w-full text-[10px]">
+                <thead class="bg-teal-500 text-white">
+                    <tr>
+                        <th class="px-2 py-2 text-left font-medium">Component</th>
+                        <th class="px-2 py-2 text-center font-medium">Total</th>
+                        <th class="px-2 py-2 text-center font-medium">Fixed</th>
+                        <th class="px-2 py-2 text-center font-medium">Pending</th>
+                        <th class="px-2 py-2 text-center font-medium">%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resource in stats.resource_stats %}
+                    <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                        <td class="px-2 py-2 font-medium text-slate-700 dark:text-slate-200">
+                            <a href="{% url 'issues_list' %}?search={{ resource.component_name|urlencode }}&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="hover:text-indigo-600 transition-colors">
+                                {{ resource.component_name|truncatechars:20 }}
+                            </a>
+                        </td>
+                        <td class="px-2 py-2 text-center">{{ resource.total }}</td>
+                        <td class="px-2 py-2 text-center text-teal-600">{{ resource.fixed }}</td>
+                        <td class="px-2 py-2 text-center text-rose-500">{{ resource.pending }}</td>
+                        <td class="px-2 py-2 text-center">
+                            {% widthratio resource.fixed resource.total 100 as completion_pct %}
+                            <span class="{% if completion_pct >= 80 %}text-teal-600{% elif completion_pct >= 50 %}text-yellow-600{% else %}text-rose-600{% endif %}">
+                                {{ completion_pct }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-2 py-4 text-center text-slate-400">No data available</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Issues by Component Status -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Issues by Component Status</h4>
+        <div class="flex items-center gap-3 mb-2 text-[10px]">
+            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-teal-500"></span><span>Fixed</span></div>
+            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-rose-500"></span><span>Pending</span></div>
+            <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400"></span><span>Unknown</span></div>
+        </div>
+        <div class="h-[300px]">
+            <canvas id="componentStatusChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Issues Table Section -->
+<div class="mt-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-3">
+        <a href="{% url 'issues_list' %}?connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors">View All Issues</a>
+        <a href="{% url 'issues_list' %}?status=Fixed&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Fixed</a>
+        <a href="{% url 'issues_list' %}?status=Pending&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Pending</a>
+        <a href="{% url 'issues_list' %}?status=Unknown&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Unknown</a>
+        
+        <div class="flex items-center gap-2 ml-auto">
+            <a href="{% url 'upload_csv' %}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                <i class="ph ph-upload-simple"></i> Upload
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if current_connection or uploaded_files %}
+<script>
+    // Chart Data
+    const chartData = {{ chart_data_json|safe }};
+    
+    // Live Dashboard Auto-Refresh
+    const currentConnectionId = {{ current_connection.id|default:"null" }};
+    const currentConnectionType = "{{ current_connection.connection_type|default:'' }}";
+    const activeSheet = "{{ active_sheet|default:'' }}";
+    let charts = {};
+    
+    // Check if this is a live connection (Google Sheets or Excel Online)
+    const isLiveConnection = currentConnectionType === 'google_sheets' || currentConnectionType === 'excel_online';
+    
+    // Function to update dashboard with live data
+    async function refreshDashboardData() {
+        if (!currentConnectionId) return;
+        
+        try {
+            const url = new URL('/api/dashboard/live/', window.location.origin);
+            url.searchParams.set('connection', currentConnectionId);
+            if (activeSheet) {
+                url.searchParams.set('sheet', activeSheet);
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch');
+            
+            const data = await response.json();
+            
+            // Update stats cards
+            updateStatsCards(data.stats);
+            
+            // Update charts
+            updateCharts(data.stats);
+            
+            // Update issues table
+            updateIssuesTable(data.issues);
+            
+            // Show last sync time
+            if (data.last_sync) {
+                showLastSyncTime(data.last_sync);
+            }
+            
+        } catch (error) {
+            console.error('Live refresh error:', error);
+        }
+    }
+    
+    // Update stats cards
+    function updateStatsCards(stats) {
+        if (stats.total_count !== undefined) {
+            const totalEl = document.querySelector('[data-stat="total"]');
+            if (totalEl) totalEl.textContent = stats.total_count;
+        }
+        if (stats.fixed_count !== undefined) {
+            const fixedEl = document.querySelector('[data-stat="fixed"]');
+            if (fixedEl) fixedEl.textContent = stats.fixed_count;
+        }
+        if (stats.pending_count !== undefined) {
+            const pendingEl = document.querySelector('[data-stat="pending"]');
+            if (pendingEl) pendingEl.textContent = stats.pending_count;
+        }
+        if (stats.unknown_count !== undefined) {
+            const unknownEl = document.querySelector('[data-stat="unknown"]');
+            if (unknownEl) unknownEl.textContent = stats.unknown_count;
+        }
+        
+        // Update completion rate
+        if (stats.completion_rate !== undefined) {
+            const completionEl = document.querySelector('[data-stat="completion"]');
+            if (completionEl) completionEl.textContent = stats.completion_rate + '%';
+        }
+    }
+    
+    // Update all charts with new data
+    function updateCharts(stats) {
+        // Update Team Roles Chart
+        if (charts.teamRoles && stats.comp_labels && stats.comp_total) {
+            charts.teamRoles.data.labels = stats.comp_labels;
+            charts.teamRoles.data.datasets[0].data = stats.comp_total;
+            charts.teamRoles.update('none');
+        }
+        
+        // Removed status/component charts
+        
+        // Update Completion Gauge
+        if (charts.completion && stats.completion_rate !== undefined) {
+            const remainingRate = 100 - stats.completion_rate;
+            charts.completion.data.datasets[0].data = [stats.completion_rate, remainingRate];
+            charts.completion.update('none');
+        }
+    }
+    
+    // Update issues table
+    function updateIssuesTable(issues) {
+        const tbody = document.getElementById('issues-table-body');
+        if (!tbody || !issues) return;
+        
+        tbody.innerHTML = issues.map(issue => `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">${issue.issue_id || '-'}</td>
+                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">${issue.component_name || '-'}</td>
+                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 max-w-xs truncate">${issue.issue_message || '-'}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(issue.status)}">${issue.status || 'Unknown'}</span>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Get status CSS class
+    function getStatusClass(status) {
+        switch(status) {
+            case 'Fixed': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400';
+            case 'Pending': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
+            default: return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+        }
+    }
+    
+    // Show last sync time
+    function showLastSyncTime(syncTime) {
+        let indicator = document.getElementById('live-sync-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'live-sync-indicator';
+            indicator.className = 'fixed bottom-4 right-4 px-4 py-2 bg-green-500 text-white text-sm rounded-lg shadow-lg flex items-center gap-2 z-50';
+            document.body.appendChild(indicator);
+        }
+        const time = new Date(syncTime).toLocaleTimeString();
+        indicator.innerHTML = `<span class="animate-pulse">●</span> Live - Updated at ${time}`;
+    }
+    
+    // Start auto-refresh for live connections
+    if (isLiveConnection) {
+        // Initial refresh
+        refreshDashboardData();
+        // Refresh every 30 seconds
+        setInterval(refreshDashboardData, 30000);
+        // Show live indicator
+        showLiveIndicator();
+    }
+    
+    function showLiveIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'live-indicator';
+        indicator.className = 'fixed top-20 right-4 px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-full shadow-lg flex items-center gap-1 z-50';
+        indicator.innerHTML = '<span class="w-2 h-2 bg-white rounded-full animate-pulse"></span> LIVE';
+        document.body.appendChild(indicator);
+    }
+
+    // Team Roles Pie Chart
+    const teamRolesCtx = document.getElementById('teamRolesChart').getContext('2d');
+    charts.teamRoles = new Chart(teamRolesCtx, {
+        type: 'pie',
+        data: {
+            labels: chartData.comp_labels,
+            datasets: [{
+                data: chartData.comp_total,
+                backgroundColor: ['#ec4899', '#f97316', '#8b5cf6', '#14b8a6', '#3b82f6', '#f59e0b', '#ef4444'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    
+
+    // Planned vs Actual Bar Chart
+    const plannedActualCtx = document.getElementById('plannedActualChart').getContext('2d');
+    new Chart(plannedActualCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.comp_labels.slice(0, 4),
+            datasets: [
+                {
+                    label: 'Planned',
+                    data: chartData.comp_total.slice(0, 4),
+                    backgroundColor: '#ec4899',
+                    borderRadius: 2
+                },
+                {
+                    label: 'Actual',
+                    data: chartData.comp_fixed.slice(0, 4),
+                    backgroundColor: '#14b8a6',
+                    borderRadius: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 8 } } },
+                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 8 } } }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 8, font: { size: 8 } } }
+            }
+        }
+    });
+
+    // Task Completion Gauge Chart
+    const completionRate = {{ stats.completion_rate|default:0 }};
+    const remainingRate = 100 - completionRate;
+    const completionGaugeCtx = document.getElementById('completionGaugeChart').getContext('2d');
+    charts.completion = new Chart(completionGaugeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Remaining'],
+            datasets: [{
+                data: [completionRate, remainingRate],
+                backgroundColor: ['#14b8a6', '#e5e7eb'],
+                borderWidth: 0,
+                circumference: 180,
+                rotation: 270
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+    });
+
+    // Component Status Stacked Bar Chart - Shows Fixed/Pending/Unknown per Component
+    const componentStatusCtx = document.getElementById('componentStatusChart').getContext('2d');
+    new Chart(componentStatusCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.comp_labels.slice(0, 8),
+            datasets: [
+                { 
+                    label: 'Fixed', 
+                    data: chartData.comp_fixed.slice(0, 8), 
+                    backgroundColor: '#14b8a6' 
+                },
+                { 
+                    label: 'Pending', 
+                    data: chartData.comp_pending.slice(0, 8), 
+                    backgroundColor: '#f43f5e' 
+                },
+                { 
+                    label: 'Unknown', 
+                    data: chartData.comp_total.slice(0, 8).map((total, i) => 
+                        total - (chartData.comp_fixed[i] || 0) - (chartData.comp_pending[i] || 0)
+                    ), 
+                    backgroundColor: '#fbbf24' 
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } },
+                y: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Change sheet function
+    function changeSheet(sheetName) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('sheet', sheetName);
+        window.location.href = url.toString();
+    }
+    
+    // Change uploaded file
+    function changeFile(connectionId) {
+        const url = new URL(window.location.href);
+        if (connectionId) {
+            url.searchParams.set('connection', connectionId);
+        }
+        url.searchParams.delete('sheet');
+        window.location.href = url.toString();
+    }
+    
+    // Change sheet tab
+    function changeTab(sheetName) {
+        const url = new URL(window.location.href);
+        if (sheetName === 'all') {
+            url.searchParams.delete('sheet');
+        } else {
+            url.searchParams.set('sheet', sheetName);
+        }
+        window.location.href = url.toString();
+    }
+    
+    // Legacy function (keep for compatibility)
+    function changeDataSource(value) {
+        const url = new URL(window.location.href);
+        
+        if (value === 'all') {
+            url.searchParams.delete('connection');
+            url.searchParams.delete('sheet');
+        } else if (value === 'all_sheets') {
+            url.searchParams.delete('sheet');
+        } else if (value.startsWith('conn:')) {
+            const connId = value.replace('conn:', '');
+            url.searchParams.set('connection', connId);
+            url.searchParams.delete('sheet');
+        } else if (value.startsWith('sheet:')) {
+            const sheetName = value.replace('sheet:', '');
+            url.searchParams.set('sheet', sheetName);
+        }
+        
+        window.location.href = url.toString();
+    }
+
+    // Fill component counts in legend
+    const compTotals = {{ stats.comp_total|safe|default:"[]" }};
+    document.querySelectorAll('.js-comp-count').forEach(function(el) {
+        const idx = parseInt(el.dataset.index);
+        if (compTotals && compTotals[idx] !== undefined) {
+            el.textContent = compTotals[idx];
+        } else {
+            el.textContent = '0';
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

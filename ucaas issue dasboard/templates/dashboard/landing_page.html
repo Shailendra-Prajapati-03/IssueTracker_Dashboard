@@ -1,0 +1,182 @@
+{% extends "dashboard/base_premium.html" %}
+
+{% block title %}Welcome - Issue Tracker Pro{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Hero Section -->
+    <div class="text-center mb-10">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-3">
+            Issue Performance Dashboard
+        </h1>
+        <p class="text-base text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
+            Choose how you want to connect your data. View real-time insights from live sheets or upload files for instant analysis.
+        </p>
+    </div>
+
+    <!-- Two Options Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        <!-- Option 1: Connect Live Sheet -->
+        <div class="group premium-card bg-white dark:bg-slate-800 rounded-2xl p-6 cursor-pointer"
+             onclick="window.location.href='{% url 'connect_sheet' %}'">
+            <div class="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-7 h-7 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                Connect Live Sheet
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                Connect to Google Sheets or Excel Online for real-time data updates. Your dashboard will automatically refresh when the sheet changes.
+            </p>
+            <div class="flex items-center text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                <span>Connect Now</span>
+                <svg class="w-4 h-4 ml-1.5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                </svg>
+            </div>
+            <div class="mt-4 flex gap-2">
+                <span class="px-2.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-[10px] rounded-full font-medium">
+                    Real-time
+                </span>
+                <span class="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] rounded-full font-medium">
+                    Auto-sync
+                </span>
+            </div>
+        </div>
+
+        <!-- Option 2: Upload File -->
+        <div class="group premium-card bg-white dark:bg-slate-800 rounded-2xl p-6 cursor-pointer"
+             onclick="window.location.href='{% url 'upload_csv' %}'">
+            <div class="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <svg class="w-7 h-7 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                Upload File
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                Upload Excel or CSV files to instantly view your dashboard. Perfect for one-time analysis or offline data.
+            </p>
+            <div class="flex items-center text-purple-600 dark:text-purple-400 font-semibold text-sm">
+                <span>Upload File</span>
+                <svg class="w-4 h-4 ml-1.5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                </svg>
+            </div>
+            <div class="mt-4 flex gap-2">
+                <span class="px-2.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] rounded-full font-medium">
+                    CSV / Excel
+                </span>
+                <span class="px-2.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] rounded-full font-medium">
+                    Instant
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Connections -->
+    {% if connections or filter_type %}
+    <div class="bg-white dark:bg-slate-800 rounded-2xl premium-card p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i class="ph ph-clock-counter-clockwise text-indigo-500"></i>
+                Recent Connections
+            </h3>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="mb-6 flex flex-wrap gap-2">
+            <a href="{% url 'landing_page' %}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 
+                {% if not filter_type %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600{% endif %}">
+                📊 All ({{ total_count }})
+            </a>
+            <a href="{% url 'landing_page' %}?filter=upload" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 
+                {% if filter_type == 'upload' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600{% endif %}">
+                📁 Uploaded Files ({{ upload_count }})
+            </a>
+            <a href="{% url 'landing_page' %}?filter=live" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 
+                {% if filter_type == 'live' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/30{% else %}bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600{% endif %}">
+                🔗 Live Connections ({{ live_count }})
+            </a>
+        </div>
+        
+        <div class="space-y-2">
+            {% for conn in connections %}
+            <div class="group flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110
+                        {% if conn.connection_type == 'google_sheets' %}
+                            bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400
+                        {% elif conn.connection_type == 'excel_online' %}
+                            bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400
+                        {% else %}
+                            bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400
+                        {% endif %}">
+                        {% if conn.connection_type == 'google_sheets' %}
+                        <i class="ph ph-google-logo text-lg"></i>
+                        {% elif conn.connection_type == 'excel_online' %}
+                        <i class="ph ph-microsoft-excel-logo text-lg"></i>
+                        {% else %}
+                        <i class="ph ph-file-csv text-lg"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{{ conn.name }}</p>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <span>{{ conn.get_connection_type_display }}</span>
+                            {% if conn.last_sync %}
+                                <span class="text-slate-300 dark:text-slate-600">&bull;</span>
+                                <span>{{ conn.last_sync|timesince }} ago</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <a href="{% url 'dashboard_comprehensive' %}?connection={{ conn.id }}" 
+                   class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/30 transition-all">
+                    VIEW DASHBOARD
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if total_connections > 10 %}
+        <div class="mt-4 text-center">
+            <a href="{% url 'connections_list' %}" class="text-indigo-600 dark:text-indigo-400 hover:underline text-xs font-semibold">
+                View all connections &rarr;
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Features -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="premium-card bg-white dark:bg-slate-800 rounded-2xl p-5 text-center transition-all">
+            <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center mx-auto mb-3 animate-float">
+                <i class="ph ph-chart-line-up text-indigo-600 dark:text-indigo-400 text-xl"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-1.5">Visual Analytics</h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">Beautiful charts and graphs to visualize your issue data trends</p>
+        </div>
+        
+        <div class="premium-card bg-white dark:bg-slate-800 rounded-2xl p-5 text-center transition-all">
+            <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center mx-auto mb-3 animate-float" style="animation-delay: 0.5s;">
+                <i class="ph ph-arrows-clockwise text-emerald-600 dark:text-emerald-400 text-xl"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-1.5">Real-time Updates</h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">Live data sync from connected Google and Excel sheets</p>
+        </div>
+        
+        <div class="premium-card bg-white dark:bg-slate-800 rounded-2xl p-5 text-center transition-all">
+            <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center mx-auto mb-3 animate-float" style="animation-delay: 1s;">
+                <i class="ph ph-file-arrow-down text-amber-600 dark:text-amber-400 text-xl"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-1.5">Export Reports</h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">Download filtered data as professional CSV reports</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

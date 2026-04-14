@@ -1,0 +1,177 @@
+{% extends "dashboard/base_premium.html" %}
+
+{% block title %}Issues List - Issue Tracker Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Prevent horizontal scroll on the page */
+    body {
+        overflow-x: hidden;
+    }
+    .issues-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .message-cell {
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header with Back Button -->
+<div class="mb-5 flex items-center justify-between">
+    <div>
+        <h1 class="text-xl font-bold text-slate-900 dark:text-white">ISSUES LIST</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">View all uploaded issues</p>
+    </div>
+    <a href="{% url 'dashboard_comprehensive' %}{% if current_connection %}?connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}{% endif %}" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to Dashboard
+    </a>
+</div>
+
+<!-- Tab Filter (Only if current connection has multiple sheets) -->
+{% if current_connection and sheet_names|length > 1 %}
+<div class="mb-6 flex items-center gap-3">
+    <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">📁 Select Tab:</label>
+    <div class="flex flex-wrap gap-2">
+        <a href="{% url 'issues_list' %}?connection={{ current_connection.id }}{% if current_status %}&status={{ current_status }}{% endif %}" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {% if not active_sheet %}bg-indigo-600 text-white shadow-md{% else %}bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700{% endif %}">
+            All Tabs
+        </a>
+        {% for sheet in sheet_names %}
+        <a href="{% url 'issues_list' %}?connection={{ current_connection.id }}&sheet={{ sheet|urlencode }}{% if current_status %}&status={{ current_status }}{% endif %}" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {% if sheet == active_sheet %}bg-indigo-600 text-white shadow-md{% else %}bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700{% endif %}">
+            {{ sheet }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Status Filter Buttons -->
+<div class="mb-5 flex flex-wrap gap-2">
+    <a href="{% url 'issues_list' %}{% if current_connection %}?connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}{% endif %}" class="px-3 py-1.5 {% if not current_status %}bg-teal-500 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-xs font-medium rounded-lg hover:bg-teal-600 transition-colors">
+        All Issues ({{ stats.total_count|default:"0" }})
+    </a>
+    <a href="{% url 'issues_list' %}?status=Fixed{% if current_connection %}&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}{% endif %}" class="px-3 py-1.5 {% if current_status == 'Fixed' %}bg-teal-500 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-xs font-medium rounded-lg hover:bg-teal-600 transition-colors">
+        Fixed ({{ stats.fixed_count|default:"0" }})
+    </a>
+    <a href="{% url 'issues_list' %}?status=Pending{% if current_connection %}&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}{% endif %}" class="px-3 py-1.5 {% if current_status == 'Pending' %}bg-rose-500 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-xs font-medium rounded-lg hover:bg-rose-600 transition-colors">
+        Pending ({{ stats.pending_count|default:"0" }})
+    </a>
+    <a href="{% url 'issues_list' %}?status=Unknown{% if current_connection %}&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}{% endif %}" class="px-3 py-1.5 {% if current_status == 'Unknown' %}bg-amber-500 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors">
+        Unknown ({{ stats.unknown_count|default:"0" }})
+    </a>
+</div>
+
+<!-- Search -->
+<div class="mb-5">
+    <form method="get" class="flex gap-2">
+        {% if current_status %}
+        <input type="hidden" name="status" value="{{ current_status }}">
+        {% endif %}
+        {% if current_connection %}
+        <input type="hidden" name="connection" value="{{ current_connection.id }}">
+        {% endif %}
+        {% if active_sheet %}
+        <input type="hidden" name="sheet" value="{{ active_sheet }}">
+        {% endif %}
+        <input type="text" name="search" value="{{ search_query }}" placeholder="Search issues..." class="flex-1 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 text-xs">
+        <button type="submit" class="px-3 py-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-xs">
+            <i class="ph ph-magnifying-glass"></i> Search
+        </button>
+        {% if search_query %}
+        <a href="{% url 'issues_list' %}?{% if current_status %}status={{ current_status }}{% endif %}{% if current_connection %}&connection={{ current_connection.id }}{% endif %}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-3 py-1.5 bg-slate-300 text-slate-700 rounded-lg hover:bg-slate-400 transition-colors text-xs">
+            Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Issues Table -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-xs issues-table">
+            <thead class="bg-slate-50 dark:bg-slate-700">
+                <tr>
+                    <th class="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300 w-24">Issue ID</th>
+                    <th class="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300 w-40">Component</th>
+                    <th class="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300">Issue Message</th>
+                    <th class="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300 w-28">Status</th>
+                    <th class="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300 w-32">Sheet</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                {% for issue in issues %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <td class="px-3 py-2 font-medium text-slate-900 dark:text-white break-all">{{ issue.issue_id }}</td>
+                    <td class="px-3 py-2 text-slate-600 dark:text-slate-400 break-words">{{ issue.component_name|default:"-" }}</td>
+                    <td class="px-3 py-2 text-slate-700 dark:text-slate-300">
+                        <div class="message-cell leading-relaxed">
+                            {{ issue.issue_message }}
+                        </div>
+                    </td>
+                    <td class="px-3 py-2">
+                        <span class="px-2 py-0.5 text-[10px] font-medium rounded-full 
+                            {% if issue.status == 'Fixed' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
+                            {% elif issue.status == 'Pending' %}bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400
+                            {% else %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400{% endif %}">
+                            {{ issue.status }}
+                        </span>
+                    </td>
+                    <td class="px-3 py-2 text-slate-500 dark:text-slate-400 text-[10px] break-words">{{ issue.sheet_name|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
+                        <i class="ph ph-inbox text-3xl mb-1.5 block"></i>
+                        No issues found. Upload a file to see issues here.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if issues.has_other_pages %}
+<div class="mt-6 flex justify-center items-center gap-1.5">
+    {% if issues.has_previous %}
+    <a href="?page={{ issues.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_connection %}&connection={{ current_connection.id }}{% endif %}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" 
+       class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors">
+        <i class="ph ph-caret-left"></i>
+    </a>
+    {% endif %}
+    
+    {% for i in issues.paginator.page_range %}
+        {% if issues.number == i %}
+            <span class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-500/30">{{ i }}</span>
+        {% elif i > issues.number|add:'-3' and i < issues.number|add:'3' %}
+            <a href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_connection %}&connection={{ current_connection.id }}{% endif %}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" 
+               class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors">
+                {{ i }}
+            </a>
+        {% elif i == 1 or i == issues.paginator.num_pages %}
+            <a href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_connection %}&connection={{ current_connection.id }}{% endif %}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" 
+               class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors">
+                {{ i }}
+            </a>
+        {% elif i == issues.number|add:'-3' or i == issues.number|add:'3' %}
+            <span class="text-slate-400">...</span>
+        {% endif %}
+    {% endfor %}
+    
+    {% if issues.has_next %}
+    <a href="?page={{ issues.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_connection %}&connection={{ current_connection.id }}{% endif %}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" 
+       class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors">
+        <i class="ph ph-caret-right"></i>
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

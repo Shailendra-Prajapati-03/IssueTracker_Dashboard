@@ -1,0 +1,142 @@
+{% extends "dashboard/base_premium.html" %}
+
+{% block title %}All Connections - Issue Tracker Pro{% endblock %}
+
+{% block content %}
+<!-- Header with Back Button -->
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">ALL CONNECTIONS</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Manage your uploaded files and live connections</p>
+    </div>
+    <a href="{% url 'dashboard_comprehensive' %}" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to Dashboard
+    </a>
+</div>
+
+<!-- Filter Buttons -->
+<div class="mb-6 flex flex-wrap gap-2">
+    <a href="{% url 'connections_list' %}" 
+       class="px-4 py-2 {% if not filter_type %}bg-indigo-600 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+        📊 All ({{ total_count }})
+    </a>
+    <a href="{% url 'connections_list' %}?filter=upload" 
+       class="px-4 py-2 {% if filter_type == 'upload' %}bg-blue-600 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+        📁 Uploaded Files ({{ upload_count }})
+    </a>
+    <a href="{% url 'connections_list' %}?filter=live" 
+       class="px-4 py-2 {% if filter_type == 'live' %}bg-green-600 text-white{% else %}bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200{% endif %} text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+        🔗 Live Connections ({{ live_count }})
+    </a>
+</div>
+
+<!-- Connections List -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    {% if connections %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-slate-50 dark:bg-slate-700/50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Issues</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Created</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                {% for conn in connections %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            {% if conn.connection_type == 'upload' %}
+                            <span class="text-xl">📁</span>
+                            {% elif conn.connection_type == 'google_sheets' %}
+                            <span class="text-xl">📊</span>
+                            {% elif conn.connection_type == 'excel_online' %}
+                            <span class="text-xl">📈</span>
+                            {% else %}
+                            <span class="text-xl">🔗</span>
+                            {% endif %}
+                            <div>
+                                <p class="text-sm font-medium text-slate-900 dark:text-white">{{ conn.name }}</p>
+                                {% if conn.sheet_url %}
+                                <p class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{{ conn.sheet_url|truncatechars:40 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full 
+                            {% if conn.connection_type == 'upload' %}
+                                bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
+                            {% elif conn.connection_type == 'google_sheets' %}
+                                bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                            {% elif conn.connection_type == 'excel_online' %}
+                                bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400
+                            {% else %}
+                                bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-400
+                            {% endif %}">
+                            {{ conn.get_connection_type_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm text-slate-700 dark:text-slate-300">{{ conn.issue_count }} issues</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm text-slate-500 dark:text-slate-400">{{ conn.created_at|date:"M d, Y H:i" }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <a href="{% url 'dashboard_comprehensive' %}?connection={{ conn.id }}" 
+                               class="px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-xs font-medium hover:bg-slate-700 dark:hover:bg-slate-200 transition">
+                                View
+                            </a>
+                            <form method="post" action="{% url 'delete_connection' conn.id %}" 
+                                  onsubmit="return confirm('Are you sure you want to delete &quot;{{ conn.name }}&quot;? This will also delete all {{ conn.issue_count }} associated issues.');"
+                                  class="inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-medium hover:bg-rose-600 transition">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-12 text-center">
+        <div class="text-6xl mb-4">📂</div>
+        <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-2">No connections yet</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Upload a file or connect a live sheet to get started.</p>
+        <div class="flex justify-center gap-3">
+            <a href="{% url 'upload_csv' %}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">
+                <i class="ph ph-plus mr-1"></i> New Upload
+            </a>
+            <a href="{% url 'connect_sheet' %}" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium transition">
+                Connect Live Sheet
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Summary Footer -->
+{% if connections %}
+<div class="mt-6 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+    <p>Total: {{ connections|length }} connection{{ connections|length|pluralize }}</p>
+    <div class="flex gap-4">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Upload</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Google Sheets</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Excel Online</span>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

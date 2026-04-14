@@ -1,0 +1,517 @@
+{% extends "dashboard/base_premium.html" %}
+
+{% block title %}Comparison Dashboard - Status Comparison{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Prevent horizontal scroll on the page */
+    body {
+        overflow-x: hidden;
+    }
+    .main-content {
+        max-width: 100%;
+    }
+    /* Line clamp for issue messages - REMOVED for full display */
+    .message-text {
+        word-wrap: break-word;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        white-space: normal;
+        overflow: hidden;
+    }
+    /* Fixed table layout with defined widths */
+    .fixed-table {
+        table-layout: fixed;
+        width: 100%;
+        min-width: 800px; /* Ensure table doesn't get too squished */
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .fixed-table td, .fixed-table th {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: break-word;
+    }
+    .fixed-table th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .mismatch-card {
+        max-height: 800px;
+        overflow-y: auto;
+        overflow-x: auto;
+    }
+    /* Custom Scrollbar for Mismatch Card */
+    .mismatch-card::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .mismatch-card::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .mismatch-card::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+    .dark .mismatch-card::-webkit-scrollbar-thumb {
+        background: #334155;
+    }
+    /* Tabs Styling */
+    .tab-btn {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-bottom: 2.5px solid transparent;
+        position: relative;
+    }
+    .tab-btn.active {
+        border-bottom-color: #6366f1;
+        color: #6366f1 !important;
+        background: rgba(99, 102, 241, 0.08);
+    }
+    .tab-btn:hover:not(.active) {
+        background: rgba(99, 102, 241, 0.03);
+        color: #6366f1 !important;
+    }
+    .dark .tab-btn.active {
+        background: rgba(99, 102, 241, 0.15);
+    }
+    
+    /* Modern Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        font-size: 10px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        border: 1px solid transparent;
+    }
+    
+    .status-fixed {
+        background-color: #ecfdf5;
+        color: #059669;
+        border-color: #d1fae5;
+    }
+    .dark .status-fixed {
+        background-color: rgba(16, 185, 129, 0.1);
+        color: #34d399;
+        border-color: rgba(16, 185, 129, 0.2);
+    }
+    
+    .status-pending {
+        background-color: #fff1f2;
+        color: #e11d48;
+        border-color: #ffe4e6;
+    }
+    .dark .status-pending {
+        background-color: rgba(244, 63, 94, 0.1);
+        color: #fb7185;
+        border-color: rgba(244, 63, 94, 0.2);
+    }
+    
+    .status-progress {
+        background-color: #eff6ff;
+        color: #2563eb;
+        border-color: #dbeafe;
+    }
+    .dark .status-progress {
+        background-color: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border-color: rgba(59, 130, 246, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- Header Section -->
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Comparison Dashboard</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Status analysis and comparison for MCM vs Capanicus</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div class="flex items-center gap-1 sm:gap-2">
+                <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">Source</label>
+                <select id="sourceSelect" onchange="changeFile(this.value)" class="px-3 sm:px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 text-xs sm:text-sm min-w-[140px] max-w-[200px]">
+                    {% if live_connections %}
+                    <optgroup label="Live Connections">
+                        {% for conn in live_connections %}
+                        <option value="{{ conn.id }}" {% if current_connection and current_connection.id == conn.id %}selected{% endif %}>{{ conn.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                    {% if uploaded_files %}
+                    <optgroup label="Uploaded Files">
+                        {% for conn in uploaded_files %}
+                        <option value="{{ conn.id }}" {% if current_connection and current_connection.id == conn.id %}selected{% endif %}>{{ conn.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                </select>
+            </div>
+            {% if sheet_names %}
+            <div class="flex items-center gap-1 sm:gap-2">
+                <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">Tab</label>
+                <select id="tabSelect" onchange="changeTab(this.value)" class="px-3 sm:px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 text-xs sm:text-sm min-w-[120px] max-w-[180px]">
+                    <option value="all" {% if not active_sheet %}selected{% endif %}>All Tabs</option>
+                    {% for sn in sheet_names %}
+                    <option value="{{ sn }}" {% if active_sheet == sn %}selected{% endif %}>{{ sn }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center">
+                    <i class="ph ph-chart-donut mr-2 text-indigo-500"></i> MCM Comments Status
+                </h4>
+            </div>
+            <div class="h-[220px]">
+                <canvas id="mcmChart"></canvas>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center">
+                    <i class="ph ph-chart-donut mr-2 text-purple-500"></i> Capanicus Comments Status
+                </h4>
+            </div>
+            <div class="h-[220px]">
+                <canvas id="copChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+            <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center">
+                <i class="ph ph-list-checks mr-2 text-blue-500"></i> Comparison Summary
+            </h4>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="p-3 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 cursor-pointer hover:shadow-md transition-shadow" onclick="filterByTab('match')">
+                    <div class="text-[10px] uppercase font-bold opacity-70">Matches</div>
+                    <div class="text-xl font-bold">{{ matches }}</div>
+                </div>
+                <div class="p-3 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-100 dark:border-rose-800/50 cursor-pointer hover:shadow-md transition-shadow" onclick="filterByTab('mismatch')">
+                    <div class="text-[10px] uppercase font-bold opacity-70">Mismatches</div>
+                    <div class="text-xl font-bold">{{ mismatches }}</div>
+                </div>
+                <div class="col-span-2 p-3 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-100 dark:border-amber-800/50 cursor-pointer hover:shadow-md transition-shadow" onclick="filterByTab('conflict')">
+                    <div class="text-[10px] uppercase font-bold opacity-70">Highlighted Conflicts</div>
+                    <div class="text-xl font-bold">{{ highlighted_conflicts }}</div>
+                    <div class="text-[9px] mt-1 opacity-70">(Capanicus=Fixed vs MCM=Pending/In Progress)</div>
+                </div>
+            </div>
+        </div>
+        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+            <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center">
+                <i class="ph ph-git-diff mr-2 text-orange-500"></i> Mismatch Breakdown
+            </h4>
+            <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700/50">
+                <table class="w-full text-xs">
+                    <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-400">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-bold uppercase tracking-widest text-[9px]">Capanicus Status</th>
+                            <th class="text-left px-4 py-3 font-bold uppercase tracking-widest text-[9px]">MCM Status</th>
+                            <th class="text-right px-4 py-3 font-bold uppercase tracking-widest text-[9px]">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {% for item in mismatch_pairs_list %}
+                        <tr class="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors cursor-pointer group" onclick="filterByPair('{{ item.cop }}', '{{ item.mcm }}')">
+                            <td class="px-4 py-3 font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 transition-colors">{{ item.cop }}</td>
+                            <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{{ item.mcm }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <span class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-lg font-mono font-bold text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-all">
+                                    {{ item.count }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="px-4 py-8 text-slate-400 text-center italic font-medium">No mismatches detected.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mismatch Details Table -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col mb-10">
+        <!-- Section Header with Tabs -->
+        <div class="border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center">
+                    <div class="w-11 h-11 rounded-xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center mr-4 shadow-lg shadow-indigo-500/20">
+                        <i class="ph ph-chart-scatter text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Status Comparison Analysis</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Detailed audit of status alignment between MCM and Capanicus</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Quick View:</span>
+                    <button onclick="filterByTab('mismatch')" class="px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 shadow-sm" id="tab-mismatch">Mismatches</button>
+                    <button onclick="filterByTab('conflict')" class="px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 shadow-sm" id="tab-conflict">Conflicts</button>
+                    <button onclick="filterByTab('all')" class="px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 shadow-sm" id="tab-all">All</button>
+                </div>
+            </div>
+            
+            <!-- Detailed Tabs -->
+            <div class="px-6 flex items-center space-x-1 border-t border-slate-100 dark:border-slate-700/50 overflow-x-auto no-scrollbar">
+                <button onclick="filterByTab('mismatch')" class="tab-btn active px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap" id="tab-mismatch-full">
+                    <i class="ph ph-warning-circle mr-1.5 text-rose-500"></i> Mismatches Only
+                </button>
+                <button onclick="filterByTab('conflict')" class="tab-btn px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap" id="tab-conflict-full">
+                    <i class="ph ph-shield-warning mr-1.5 text-amber-500"></i> Critical Conflicts
+                </button>
+                <button onclick="filterByTab('match')" class="tab-btn px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap" id="tab-match-full">
+                    <i class="ph ph-check-circle mr-1.5 text-emerald-500"></i> Both Fixed
+                </button>
+                <button onclick="filterByTab('all')" class="tab-btn px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap" id="tab-all-full">
+                    <i class="ph ph-rows mr-1.5 text-indigo-500"></i> Entire Selection
+                </button>
+            </div>
+        </div>
+        
+        <div class="mismatch-card overflow-x-auto">
+            <table id="detailsTable" class="fixed-table text-xs">
+                <thead>
+                    <tr class="bg-slate-50/80 dark:bg-slate-900/60 backdrop-blur-md">
+                        <th class="text-left px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-32 border-b border-slate-100 dark:border-slate-700">Issue ID</th>
+                        <th class="text-left px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-48 border-b border-slate-100 dark:border-slate-700">Component</th>
+                        <th class="text-left px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-auto border-b border-slate-100 dark:border-slate-700">Description</th>
+                        <th class="text-left px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-44 border-b border-slate-100 dark:border-slate-700">MCM Status</th>
+                        <th class="text-left px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-44 border-b border-slate-100 dark:border-slate-700">Capanicus Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50 bg-white dark:bg-slate-800" id="tableBody">
+                    {% for row in mismatch_rows %}
+                    <tr class="comparison-row group hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-all" 
+                        data-m-status="{{ row.m_status }}" 
+                        data-c-status="{{ row.c_status }}"
+                        data-is-match="{{ row.is_match|lower }}">
+                        <td class="px-6 py-4">
+                            <span class="font-mono text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-[10px] font-bold group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 transition-colors">
+                                {{ row.issue_id }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-700 dark:text-slate-200 text-xs">{{ row.component_name }}</span>
+                                <span class="text-[9px] text-slate-400 uppercase font-medium">Module</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="message-text text-slate-600 dark:text-slate-400 leading-relaxed py-1 pr-4">
+                                {{ row.issue_message }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="status-badge {% if row.m_status == 'Fixed' %}status-fixed{% elif row.m_status == 'Pending' %}status-pending{% elif row.m_status == 'In Progress' %}status-progress{% else %}bg-slate-100 dark:bg-slate-700 text-slate-500{% endif %}">
+                                <span class="w-1.5 h-1.5 rounded-full mr-1.5 {% if row.m_status == 'Fixed' %}bg-emerald-500{% elif row.m_status == 'Pending' %}bg-rose-500{% elif row.m_status == 'In Progress' %}bg-blue-500{% else %}bg-slate-400{% endif %}"></span>
+                                {{ row.m_status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="status-badge {% if row.c_status == 'Fixed' %}status-fixed{% elif row.c_status == 'Pending' %}status-pending{% elif row.c_status == 'In Progress' %}status-progress{% else %}bg-slate-100 dark:bg-slate-700 text-slate-500{% endif %}">
+                                <span class="w-1.5 h-1.5 rounded-full mr-1.5 {% if row.c_status == 'Fixed' %}bg-emerald-500{% elif row.c_status == 'Pending' %}bg-rose-500{% elif row.c_status == 'In Progress' %}bg-blue-500{% else %}bg-slate-400{% endif %}"></span>
+                                {{ row.c_status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-24 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-20 h-20 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mb-4 border border-emerald-100 dark:border-emerald-800/30">
+                                    <i class="ph ph-checks text-4xl text-emerald-500"></i>
+                                </div>
+                                <h3 class="text-lg font-extrabold text-slate-900 dark:text-white">Full Synchronization</h3>
+                                <p class="text-sm text-slate-500 max-w-xs mt-1 font-medium">No discrepancies found between MCM and Capanicus for this selection.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest" id="recordCount">
+                Showing all records.
+            </span>
+            <div class="flex items-center gap-4">
+                <span class="flex items-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Fixed
+                </span>
+                <span class="flex items-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> Pending
+                </span>
+                <span class="flex items-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span> In Progress
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const dataPayload = {{ chart_data_json|safe }};
+    const labels = dataPayload.labels;
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 20,
+                    font: { size: 11, family: "'Inter', sans-serif" }
+                }
+            }
+        }
+    };
+
+    const mcmCtx = document.getElementById('mcmChart').getContext('2d');
+    new Chart(mcmCtx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: dataPayload.mcm,
+                backgroundColor: ['#10b981', '#6366f1', '#f43f5e', '#f59e0b'],
+                hoverOffset: 4,
+                borderWidth: 0
+            }]
+        },
+        options: chartOptions
+    });
+
+    const copCtx = document.getElementById('copChart').getContext('2d');
+    new Chart(copCtx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: dataPayload.cop,
+                backgroundColor: ['#10b981', '#6366f1', '#f43f5e', '#f59e0b'],
+                hoverOffset: 4,
+                borderWidth: 0
+            }]
+        },
+        options: chartOptions
+    });
+
+    function changeFile(connId) {
+        const url = new URL(window.location.href);
+        if (connId) { url.searchParams.set('connection', connId); }
+        window.location.href = url.toString();
+    }
+
+    function changeTab(sheetName) {
+        const url = new URL(window.location.href);
+        if (sheetName === 'all') url.searchParams.delete('sheet'); else url.searchParams.set('sheet', sheetName);
+        window.location.href = url.toString();
+    }
+
+    // Filtering Logic for Tabs
+    function filterByTab(tabType) {
+        const rows = document.querySelectorAll('.comparison-row');
+        let visibleCount = 0;
+        
+        // Update active styling for both sets of buttons
+        // Header buttons
+        document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+            if (btn.id.includes('-full')) return; // skip detailed tabs here
+            btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+            btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+        });
+        
+        const headerBtn = document.getElementById(`tab-${tabType}`);
+        if (headerBtn) {
+            headerBtn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+            headerBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+        }
+
+        // Detailed tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        const fullBtn = document.getElementById(`tab-${tabType}-full`);
+        if (fullBtn) fullBtn.classList.add('active');
+
+        rows.forEach(row => {
+            const mStatus = row.getAttribute('data-m-status');
+            const cStatus = row.getAttribute('data-c-status');
+            const isMatch = row.getAttribute('data-is-match') === 'true';
+            
+            let show = false;
+            switch(tabType) {
+                case 'all':
+                    show = true;
+                    break;
+                case 'mismatch':
+                    show = !isMatch;
+                    break;
+                case 'conflict':
+                    show = (cStatus === 'Fixed' && (mStatus === 'Pending' || mStatus === 'In Progress' || mStatus === 'Unknown'));
+                    break;
+                case 'match':
+                    show = (cStatus === 'Fixed' && mStatus === 'Fixed');
+                    break;
+            }
+            
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('recordCount').textContent = `Showing ${visibleCount} records.`;
+    }
+
+    function filterByPair(cop, mcm) {
+        const rows = document.querySelectorAll('.comparison-row');
+        let visibleCount = 0;
+        
+        // Update tabs to 'all' as we're doing a specific pair filter
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('tab-all').classList.add('active');
+
+        rows.forEach(row => {
+            const mStatus = row.getAttribute('data-m-status');
+            const cStatus = row.getAttribute('data-c-status');
+            
+            if (mStatus === mcm && cStatus === cop) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        document.getElementById('recordCount').textContent = `Showing ${visibleCount} records for ${cop} vs ${mcm}.`;
+    }
+
+    // Initialize with Mismatches Only as default
+    document.addEventListener('DOMContentLoaded', () => {
+        filterByTab('mismatch');
+    });
+</script>
+{% endblock %}

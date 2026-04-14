@@ -1,0 +1,161 @@
+ No.,Elements/Components,Issues,Screenshots/videorec URLs,Capanicus comments,MCM Comments
+Web,,,,,
+A. Phone,,,,,
+,,Fixed,,,
+6,Profile-> incoming calls -> Forward Calls ,Play Announcement is not working in User Profile of Phone tab.,,FIXED,Anusha - Fixed
+,,,,,
+,,Pending,,,
+,,,,,
+1,call transfer to extension,"When a call is made from the UCaaS web to a non-UCaaS number and then transferred to another UCaaS extension, the call connects successfully. Charges are deducted for the first user’s call log and charges are correct, but charges for the second user (extension transferred call recipient) are not shown in the call-log report.",,Pending,Umar - Pending 
+2,transfer call report on external number,"When the user transfers the call to an external number, the call duration and cost is not being considered on the master caller's call report.",,Pending,Anusha - Pending
+3,Call Merge,The MasterCaller stucks at call when all other recipiants are left.,,couldnt reproduced,"Okay, considered as FIxed, still We need to discuss this with furqan sir."
+4,Dialer search bar,"The user should be able to search saved contacts on the dialer, including users with their extension and contact number(which is added in user details).",,Improvement,Saurabh - Pending
+5,Recordings Charge,"Need to implement call recordings charge on companies user base capping, and storage should be allotted differently",,In Progress,Saurabh - Pending
+7,Sentiment Analysis,The Sentiment analysis is not working as expected.,,Need to Discuss ,Saurabh - Pending
+8,Voicemail Timeout issue,The voicemail stays longer than 30 seconds.,,As discussed with tauseef Sir there is no logic to end the voicemail after 30 sec even the caller is leaving the message.. but it happens when no one speaks for 3 to 4 sec it will be disconected,Bhushra - Pending
+9,Decline with message,"On Inbound calls, Decline with message is not working, SMS cost prompt and DLC required(if needed) restriction shall be shown to the user.",,FIXED,Saurabh - Pending
+10,Free Call Minutes,Call charges are being deducted even after the free call minutes are finished.,,Testing,Saurabh - Pending
+11,Call Recording Deletion,"if the recording storage is free, we'll delete all recordings after 7 days after notifying the user before certain time.",,Confirmation pending from furkan sir,"Improvement, confirmation pending from furqan sir"
+12,transfer calls,"when the user does an extension call and then the same caller transfers the extension call to another extension, all calls will be disconnected immediately.",,,shailendra - pending
+13,monitoring,"In the Monitoring section, most features are not functioning correctly. Only Listen and Barge are available, and within Barge, functions like Mute, Transcripts, Hold, and others don’t work. The Campaign section shows no reports, and even when a campaign is opened, it still displays Monitoring – Call Queue at the top. Overall, the sections are not working properly.",,,shailendra - pending
+14,Transcription,System does not keep transcription on when user close the Call UI and get back to transcription.,,FIXED,Saurabh - pending(transcription is not working for now)
+15,Transcription in Hindi,Transcription in Hindi is not working now,,Saurabh Please provide Azure details,"We have already added card details, please use the same azure account as given with mcmcaptek9278@outlook.com"
+16,Call Monitoring,"Except All Calls, All other call monitoring tabs are not working, also call queue waiting callers records are being stuck on tab",,,Saurabh - Pending
+17,Call Dialer,Need to implement Phone Number Format with Country Code: +1 (555) 123-4567 ,,FIXED,Fixed now
+18,call recoring on in-coming call,"On incoming calls, call recording starts automatically even when the call recording setting is disabled.",,,
+,Phone,The transcript or recording feature is not working on phone,,,Bushra -Pending
+,call merge,Call merge is not working.,,,shailendra - pending
+,incoming calls,Incoming calls are not working.,,,shailendra - pending
+,Call history,Call history does not display after calling,,,Bushra -Pending
+B. Chat,,,,,
+,,Fixed,,,
+16,Chat Delete access,"If the user does not have access to delete, the user still can delete chats via team, favorites and direct tab",detele all chat.mp4,FIXED,shailendra - Fixed
+17,Chat Reload Issue,sometimes the user cannot see previous messages and even previous does not reload automatically until the user refreshes the page,,FIXED,shailendra - Fixed
+18,Chat Reload and Jump to Bottom,"To stabilize the feed, implement a top-loading spinner combined with CSS overflow-anchor: auto to prevent the view from jumping when older messages prepend. Additionally, add a floating ""down-arrow"" button that appears when the user scrolls up, providing a one-click shortcut to return to the latest message.",https://capanicus.slack.com/files/U09S8RH17J5/F0AAKHXP71Q/chatloadingandjumptobottom.png,FIXED,Saurabh - Fixed
+19,Click on Created folder,"If the user clicks on created chat folder name via vague notification, then gets back on chat, the user will be redirected to the top of the chat.",,FIXED,Anusha-Fixed
+20,Chat> Click on Replied Message,"Sometimes, when clicking on a reply message, it does not redirect to original message and instead shows the notification: ‘Original message not found. It might be in an older conversation.’",,FIXED,Anusha-Fixed
+23,chat->folder,There is no character limit on note and folder names.,,FIXED,Anusha-Fixed
+25,Join Call Button,"Join button which was removed, is still pending to connect ongoing team chat call.",,FIXED,Umar/Fixed
+28,Chat ,"While editing a message draft in one chat, switching to a different chat carries the same edited draft into the other chat. When the draft is sent, it is delivered to the original chat instead of the currently active chat.", recording.webm,FIXED,Umar/Fixed
+30,Chat > NOTES,"Deleted note activity redirects to notes instead of showing deleted state. 
+Also group or team does not shows as it is whether the team name is in UPPERCASE or lowecase style
+"," Team or group Name does not shows as it is written uppercase and lowecase and second notes after deletion, edited.mp4",FIXED,shailendra - fixed
+31,Team Chat> removed/left user,"In a team group, if any user is removed or leaves the group, their name and profile avatar are not shown in their previous chat messages.",Removed/left user chat message issue.mp4,FIXED,Umar/Fixed
+29,Chat > adding notes,Formatting option labels are visible for a few milliseconds before the notes editor loads properly.,"   UI flicker in notes.webm
+IMAGE: UI notes lable name shows while it is loading .png",,shailendra - fixed
+32,Reply chat,"When replying to a message in one user’s chat and then opening another user’s chat, the typed reply message appears in the other user’s chat.",Reply message issue.mp4,FIXED,Umar/Fixed
+,,,,,
+,,Pending,,,
+21,Chat>message,"When typing a long message in the chat input field, pressing Shift + Ctrl to move to a new line instead moves the cursor directly to the bottom line.",,In Progress,shailendra -pending
+,Team Chat> Deleted user,"If a user is deleted, their name and profile avatar are not shown in their previous chat messages in the team group.",Deleted user profile name avatar issue.mp4,,Umar/Pending
+24,Chat AI Assistant,"A chat AI assistant shall be included for user's quick & easy issue resolution as per 
+the FIgma design given in ""Screenshots/videorec URLs"" column",,Please provide video or Screenshot,We will discuss this in meeting with adnan sir
+26,Chat Section,"A member cannot ping/tag other members on team chat (for example, @admin)",,In Progress,shailendra - pending
+27,chat,the change group photo not available after creating a group.,,In Progress,shailendra - pending
+22,chat->emoji,"There are some categories of emojis are missing, e.g., flags, ",,In Progress,shailendra - pending
+,Chat list,chat pic profile,,NEED TO DISCUSS,
+,In Team Delete message ,"In Team group if any user delete chat message name of the user is not showing, who is deleted the message is not showing.",delete message chat UI.png,,
+,Chat Section,Error appears when sharing image in chat,,,Bushra - pending 
+C. Video Meeting,,,,,
+Fixed,,,,,
+33,Join Meeting Via Link,"If an unknown user joins the meeting via the URL link and enters only spaces in the Name field, the user is still able to join the meeting.",  ,FIXED,Umar/Fixed
+Pending,,,,,
+,,"In the video meeting, when I click the recording button, a popup appears saying 'Recording stopped",,,shailendra - pending
+34,video - recording,"When I click the recording icon during a meeting, it loads and starts recording, but the recording info—like how long it has been recording—doesn’t show.",,FIXED,Pending/Bushra
+35,Video Improvement Part,"Suppose I scheduled a meeting for one hour later and switch to another tab to work. When the meeting time arrives, I should receive a system notification. However, no system notification is received.",,FIXED,Pending/Bushra
+36,join buttton in notification secction,"Add a ""Join"" button in the notification section to directly join a meeting when invited.",,FIXED,Pending/Bushra
+37,join meeting multiple time,"A user can join the same meeting multiple times from different tabs using the same ID and name, which is not expected behavior and should be fixed. 1. There is no user validation on checking if the user is already on a video call.",recording.webm,FIXED/ Lets Discuss this on call.,Bushra /pending
+,Video Meeting,"Unable to join meeting via UCCAS site, but can join through email link",https://drive.google.com/file/d/1OXWeljrBszsz2kmiOPKzla4ndPlVMEkD/view?usp=sharing,,Pending/Bushra
+,,,,,
+E. Home,,,,,
+Pending,,,,,
+40,Campaign Dashboard,"In the campaign dashboard, the agent report displays the wrong count of campaigns assigned to agents.",,Please add video Couldn't reproduced,Bushra/pending
+,,,,,
+F. User Settings,,,,,
+Fixed,,,,,
+41,Settings - Video,"When we set profile photo from android, on the web version, the user won't be able to remove that profile photo",,FIXED,Umar - Fixed
+,,,,,
+G. Admin Section,,,,,
+Pending,,,,,
+42,Call Queues Creation,"The custom made user role can't be the manager of a Call Queues, 
+despite giving all permissions to that user role",,discussed with raman,Anusha/Pending
+43,admin - sms/calling rates,"In Admin Settings → SMS/Calling Rates, only Outbound Rates are shown, without clearly indicating whether they are for SMS or calling. After selecting a country, landline and mobile rates appear, but SMS or calling is still not specified. Also, searching for Canada shows two landline rates.",,FIXED,Umar - Not Fixed
+44,IVR Function,"The overall IVR UI is not user friendly and does not seem professional
+and has some Logical bugs,
+ the media function development is not
+completely implemented, 
+where the user should have features to make the 
+text to speech audio in multiple voices and accents, 
+sample designs are given in ""Screenshots/videorec URLs"" column","Sample image 1.jpeg
+
+Sample image 2.jpeg",Improvement,
+45,IVR Function,"The Generic Key press function does not work on IVR calls, such as if the IVR is set on pressing 
+* to go back on previous menu and # to repeat the present menu, also there is not option for 0 digit keypress", IVR Previous and Repeat Manue.mp4,tauseef Sir,
+46,User ID,multiple systems with a single user ID can call different users without knowing each other.,,Discuss tauseef Sir,
+,,ivr press key not working,,,pending
+I. Campaign,,,,,
+Fixed,,,,,
+49,Campaigns Reports,In some campaigns the notes are visible even when the call is getted cut,,FIXED,Umar/Fixed
+48,Campaign >Campain Logs,"In campaign call reports, the Notes option appears for certain calls even when the call status is Cancelled.",,FIXED/ Please check this,Bushra/Fixed
+Pending,,,,,
+47,Dialed Numbers,After running the campaigns the connected calls number is not visible ,,"(Working fine with not anwered), Unable to check answered (webhook issue) TESTING",Anusha/Not Fixed
+50,Create Campaign ,While creating a campaign in media before submitting the campaign settings when the user changes the dialer the script is removed from it and during the campaign calls the script is empty.,campaign script.webm,Not an issue : We kept type in Script based on the dialer : When dialer  is changed the Script  will also should be selected as per dialer chosen.,Video Added
+51,Campaign>Recording,"When an agent does not have recording access at the agent level, call recording does not work during a campaign, even if recording is enabled in the campaign settings.",Campaign Call recording issue.mp4,Discussed with Adnan.. ,Video Added
+I) Inbox,,,,,
+Fixed,,,,,
+69,SMS-Search bar,The search bar is not working.,,In Progress,shailendra - fixed
+55,Inbox > SMS Tab,Add search functionality in Message Inbox to find contacts by name or number,,,shailendra - fixed
+57,SMS -> Message ,"In the Inbox, when I try to send a message to any number, a “""available_balance"" is not allowed” pop-up appears, and the SMS is not sent.",,Add video,Anusha/Fixed
+81,Sms > Plans > Free SMS,Free SMS are not being deducted from given free SMS in plan -> Billing.,,,Anusha/Fixed
+Pending,,,,,
+70,SMS-Search bar,names wth numbers saved in contacts and numbers used on which SMS are sent shall be visible on the search bar  including users with their contact number(which is added in user details)..,,Discuss,Anusha/Not Fixed
+53,SMS -> Message ,"When I send an SMS from the inbox, I get a popup message saying 'SMS sending failed",,FIXED,shailendra - pending
+56,SMS -> Message ,"Delivery Status Missing: The system does not notify if the SMS is sent, delivered, or failed.UCAAS",,FIXED,But that's a mandatory function which other SMS apps provides.
+,SMS,SMS messages are not being sent in the SMS section,,,Bushra pending
+54,Inbox > SMS,Contact profile picture is not displayed in Inbox conversation list or contacts,Contact profile picture issue.mp4,FIXED/ Please check again working fine,shailendra - pending
+,Inbox,Inbox index section layout misaligned,https://drive.google.com/file/d/1bg9P9NfM8axwIcAlCSWsWnSVYBArG4_n/view?usp=sharing,,Bushra pending
+J) Contacts,,,,,
+Pending,,,,,
+81,Contacts and Search bar,Users shall be added with their contact numbers and other info (which is added in user details).,,,
+,update same contact issue,"If a new contact is created for the first time in any company and the same contact is later created in another company, when the contact is updated, the username of the user who created it in the first company is shown on the updated contact.",contact Update issue.mp4,,
+,contact,"I don’t have a DID number, but when I try to call from contacts, the call goes through and then shows “trying to call on this number is not available.”",https://drive.google.com/file/d/1tR6igIA-7Spspw8DTOFDjczZKBFWf6iC/view?usp=sharing,,Bushra Pending
+K) DID Numbers,,,,,
+Fixed,,,,,
+,,Added inventory numbers shall have their available features(sms/calls in/out),,FIXED,Umar/Fixed
+Pending,,,,,
+,,"While purchasing the DID, user shall see those features before billing parts.",,,
+58,Billing -> Plan ,"Billing → Plan → DID(s) tab, the cost of purchased DIDs is not displayed.",DID cost.mp4,FIXED,New purchased DIDs cost showing already purchased DIDs cost not showing
+,Add User -> assign number,"if creating bulk users(e.g more then 2 or 3 ) and assigning their DID numbers using the ‘Assign Now’ option after payment, the same DID is being added two-three times.", Same DID Assign two to three time.mp4,,
+,Add/Assign Same DID Number issue,Users from different companies are able to purchase and assign the same DID numbers at the same.,Assign and purchesing same did issue.mp4,,
+,Number,"When I purchase a DID number, it shows ‘Something went wrong",,,Bushra Pending
+M) Others,,,,,
+Fixed,,,,,
+65,Error 404,"Sometimes the Error 404 occurs on some accounts, on which upon clicking ""Go To Homepage"", The button does not redirect and refresh up on homepage", ClickOnHomepageRedirectionErr404.mp4,FIXED,Anusha/Fixed
+66,Account Renewal,"all users except admin, are able to login and use all functions(excluding billing related).",,,Anusha/Fixed
+,,,,,
+60,Knowledge base DB Collision,"some companies are having the same knowledge bases created on a single company, this means all knowledge base records are being unified in several companies:",,FIXED,Umar/Fixed
+61,Login OTP,"There should be an OTP attempt limit, for example: if the user is not able to insert otp correctly for 5 times",,FIXED,Umar/Fixed
+62,Login OTP,"There is no otp expiration rule, such as after 10-15 mins the otp shall expire.",,FIXED,Umar/Fixed
+Pending,,,,,
+,Deleted user visibility,"Deleted users must not be visible in any actions, such as 
+i) While starting a new chat or creating/editing team chat.
+ii) Users/Inventory/departments lists
+iii) Licence management list
+iv) DID inventory list(assigned DID will be un-assigned)
+v) IVR/Call Queues/any Forward to extension actions.
+vi) Any search bars, if it includes a separate users list.",,FIXED,Anusha/Not Fixed
+,ai ,ai tools not working ,,,shailendra - pending
+59,Password Reset Link Has No Expiration Time v1.2.8,"There is no time limit or expiration for the password reset link, as it remains valid regardless of when it is opened, though once used password reset link, will be expired when the user uses on second time, but it should notify as expired at initial screen after trying to use it second time.",,FIXED/ Please explain which Scenario u are reffering to is not fixed or add video,Not Fixed
+63,User owned DID Number,"DID number- the super admin shall have the option to add the user's own DID number, 
+which can be assigned later by the admin",,Improvement,Anusha/Not Fixed
+64,Overall UI responsiveness,"When the user/admin does any change for another user, such as changing their role, 
+creating a department or team chat and adding a 
+scheduling and inviting other users/members, etc. 
+The bug is that the application is not implementing real-time data updates 
+and relies on manual page refreshes, 
+which is an issue with frontend or backend communication, 
+possibly a missing or improperly configured WebSocket connection, 
+incorrect event handling, or issues with a live-reloading development server. 
+The UI needs a mechanism like WebSockets or AJAX calls to listen for server-sent events and 
+update the display dynamically, rather than waiting for the user to manually refresh
+",,FIXED,Anusha/Not Fixed
