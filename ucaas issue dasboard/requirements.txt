@@ -2,4 +2,4 @@ Django
 pandas
 openpyxl
 gunicorn
-
+requests
