@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-jz0)(-c-psg-usf_=yoj&39axl1*9%_f!qfujkdx+tu=6pq30w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['issuetracker-dashboard.onrender.com']
 
 
 # Application definition
