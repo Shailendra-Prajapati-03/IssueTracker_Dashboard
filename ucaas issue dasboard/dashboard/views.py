@@ -863,6 +863,8 @@ def connections_list(request):
 def delete_connection(request, connection_id):
     """Delete a connection and its associated issues."""
     filter_type = request.GET.get('filter', '')
+    referer = request.META.get('HTTP_REFERER', '')
+    
     try:
         connection = SheetConnection.objects.get(id=connection_id)
         connection_name = connection.name
@@ -877,10 +879,46 @@ def delete_connection(request, connection_id):
     except SheetConnection.DoesNotExist:
         messages.error(request, 'Connection not found.')
     
+    # If the request came from landing page, redirect back there
+    if 'connections' not in referer and referer:
+        return redirect(referer)
+        
     redirect_url = reverse('connections_list')
     if filter_type:
         redirect_url += f'?filter={filter_type}'
     return redirect(redirect_url)
+
+
+def download_connection(request, connection_id):
+    """Download connection data as CSV."""
+    try:
+        connection = SheetConnection.objects.get(id=connection_id)
+        issues = Issue.objects.filter(connection=connection).order_by('sheet_name', 'created_at')
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{connection.name}_data.csv"'
+        
+        writer = csv.writer(response)
+        # Header matches common issue format
+        writer.writerow(['Issue ID', 'Component', 'Message', 'Status', 'Screenshot URL', 'Capanicus Comment', 'MCM Comment', 'Sheet Name', 'Created At'])
+        
+        for issue in issues:
+            writer.writerow([
+                issue.issue_id, 
+                issue.component_name, 
+                issue.issue_message, 
+                issue.status, 
+                issue.screenshot_url, 
+                issue.capanicus_comment,
+                issue.mcm_comment,
+                issue.sheet_name,
+                issue.created_at
+            ])
+            
+        return response
+    except SheetConnection.DoesNotExist:
+        messages.error(request, 'Connection not found.')
+        return redirect('landing_page')
 
 
 def delete_all_connections(request):

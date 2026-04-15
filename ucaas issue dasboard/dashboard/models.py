@@ -15,7 +15,7 @@ class SheetConnection(models.Model):
     sheet_url = models.URLField(blank=True, null=True)
     api_key = models.CharField(max_length=500, blank=True, null=True)
     sheet_id = models.CharField(max_length=200, blank=True, null=True)
-    sheet_name = models.CharField(max_length=100, default='Sheet1', blank=True, null=True)
+    sheet_name = models.CharField(max_length=100, blank=True, null=True)
     
     # For upload
     uploaded_file = models.FileField(upload_to='uploads/', blank=True, null=True)

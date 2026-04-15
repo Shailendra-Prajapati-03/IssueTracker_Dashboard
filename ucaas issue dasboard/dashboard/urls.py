@@ -13,6 +13,7 @@ urlpatterns = [
     path('connections/', views.connections_list, name='connections_list'),
     path('connections/delete-all/', views.delete_all_connections, name='delete_all_connections'),
     path('connections/<int:connection_id>/delete/', views.delete_connection, name='delete_connection'),
+    path('connections/<int:connection_id>/download/', views.download_connection, name='download_connection'),
     path('api/dashboard/live/', views.dashboard_live_data, name='dashboard_live_data'),
     path('api/check-connection-name/', views.check_connection_name, name='check_connection_name'),
 ]

@@ -374,6 +374,30 @@
             html.classList.toggle('dark');
             localStorage.setItem('darkMode', html.classList.contains('dark'));
         });
+
+        // Auto-hide messages after 10 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageContainer = document.querySelector('.mb-5.space-y-2.5');
+            if (messageContainer) {
+                const messages = messageContainer.querySelectorAll('.animate-fade-in');
+                messages.forEach(message => {
+                    setTimeout(() => {
+                        // Add fade-out animation before removal
+                        message.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                        message.style.opacity = '0';
+                        message.style.transform = 'translateY(-10px)';
+                        
+                        setTimeout(() => {
+                            message.remove();
+                            // If no messages left, remove container to reclaim space
+                            if (messageContainer.querySelectorAll('.animate-fade-in').length === 0) {
+                                messageContainer.remove();
+                            }
+                        }, 500);
+                    }, 10000); // 10 seconds
+                });
+            }
+        });
     </script>
     
     {% block extra_js %}{% endblock %}

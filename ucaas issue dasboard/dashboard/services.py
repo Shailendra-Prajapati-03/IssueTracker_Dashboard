@@ -50,16 +50,11 @@ def sync_google_sheets(connection):
             all_sheets_data = []
             
             with pd.ExcelFile(xlsx_data) as xls:
-                # If a specific sheet is requested, process only that one
-                if connection.sheet_name and connection.sheet_name != 'Sheet1' and connection.sheet_name in xls.sheet_names:
-                    df = pd.read_excel(xls, sheet_name=connection.sheet_name)
-                    process_dataframe(df, connection.sheet_name, all_sheets_data, connection)
-                else:
-                    # Process ALL sheets (tabs)
-                    for sheet_name in xls.sheet_names:
-                        # Skip empty or internal sheets if any
-                        df = pd.read_excel(xls, sheet_name=sheet_name)
-                        process_dataframe(df, sheet_name, all_sheets_data, connection)
+                # Process ALL sheets (tabs) to ensure they are all visible in the UI
+                for sheet_name in xls.sheet_names:
+                    # Skip empty or internal sheets if any
+                    df = pd.read_excel(xls, sheet_name=sheet_name)
+                    process_dataframe(df, sheet_name, all_sheets_data, connection)
             
             # Save all issues from all tabs
             issues_to_create = [Issue(**data) for data in all_sheets_data]

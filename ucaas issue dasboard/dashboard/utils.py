@@ -198,11 +198,24 @@ def process_dataframe(df, sheet_name, all_sheets_data, connection=None):
     print(f"Available columns: {list(df.columns)}")
     print(f"Mapped columns: {actual_cols}")
     
-    # If required columns are missing, skip this sheet (will be handled by analyze in UI)
+    # If required columns are missing, we still want to show the tab if it has any data
     if missing_cols:
-        print(f"Skipping sheet {sheet_name} due to missing required columns: {missing_cols}")
-        return
+        print(f"Sheet {sheet_name} missing columns: {missing_cols}. Attempting to extract what we can.")
     
+    # If the sheet is completely empty, we still want it to show up in the UI
+    if df.empty:
+        issue_data = {
+            'sheet_name': sheet_name,
+            'issue_id': 'INFO',
+            'component_name': 'Empty Sheet',
+            'issue_message': 'This sheet does not contain any data rows.',
+            'status': 'Unknown',
+            'connection': connection
+        }
+        all_sheets_data.append(issue_data)
+        return
+
+    rows_added = 0
     for index, row in df.iterrows():
         # Skip blank rows - check if issue_message or mcm_comment is empty
         issue_val = ""
@@ -309,4 +322,17 @@ def process_dataframe(df, sheet_name, all_sheets_data, connection=None):
         if connection:
             issue_data['connection'] = connection
         
+        all_sheets_data.append(issue_data)
+        rows_added += 1
+    
+    # If no rows were added (e.g. all rows were blank), add a placeholder
+    if rows_added == 0:
+        issue_data = {
+            'sheet_name': sheet_name,
+            'issue_id': 'INFO',
+            'component_name': 'No Data',
+            'issue_message': 'This sheet does not contain any issues or records.',
+            'status': 'Unknown',
+            'connection': connection
+        }
         all_sheets_data.append(issue_data)

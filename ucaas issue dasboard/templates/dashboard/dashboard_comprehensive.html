@@ -16,26 +16,6 @@
     
         <!-- Dashboard Actions -->
         <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">📁 Source:</label>
-            <select onchange="changeFile(this.value)" class="px-3 sm:px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm min-w-[140px] max-w-[200px] truncate shadow-sm hover:border-indigo-400 transition-all cursor-pointer">
-                {% if live_connections %}
-                <optgroup label="Live Connections">
-                    {% for conn in live_connections %}
-                    <option value="{{ conn.id }}" {% if current_connection.id == conn.id %}selected{% endif %}>{{ conn.name }}</option>
-                    {% endfor %}
-                </optgroup>
-                {% endif %}
-                {% if uploaded_files %}
-                <optgroup label="Uploaded Files">
-                    {% for conn in uploaded_files %}
-                    <option value="{{ conn.id }}" {% if current_connection.id == conn.id %}selected{% endif %}>{{ conn.name }}</option>
-                    {% endfor %}
-                </optgroup>
-                {% endif %}
-            </select>
-        </div>
-
         
         <!-- Sheet Tabs Dropdown (Only for current file) -->
         {% if current_connection and sheet_names %}
