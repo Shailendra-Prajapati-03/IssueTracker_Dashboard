@@ -11,6 +11,7 @@ urlpatterns = [
     path('issues/', views.issues_list, name='issues_list'),
     path('issues/<int:issue_id>/', views.issue_detail, name='issue_detail'),
     path('connections/', views.connections_list, name='connections_list'),
+    path('connections/delete-all/', views.delete_all_connections, name='delete_all_connections'),
     path('connections/<int:connection_id>/delete/', views.delete_connection, name='delete_connection'),
     path('api/dashboard/live/', views.dashboard_live_data, name='dashboard_live_data'),
     path('api/check-connection-name/', views.check_connection_name, name='check_connection_name'),

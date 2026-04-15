@@ -21,6 +21,7 @@
 {% endblock %}
 
 {% block content %}
+<div hx-boost="true" hx-target="#main-content" hx-select="#main-content">
 <!-- Header with Back Button -->
 <div class="mb-5 flex items-center justify-between">
     <div>
@@ -174,4 +175,5 @@
     {% endif %}
 </div>
 {% endif %}
+</div>
 {% endblock %}

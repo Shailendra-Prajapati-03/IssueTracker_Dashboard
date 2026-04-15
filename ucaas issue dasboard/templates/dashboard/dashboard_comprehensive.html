@@ -14,10 +14,9 @@
         <p class="text-sm text-slate-500 dark:text-slate-400">Track and analyze issue resolution across your projects</p>
     </div>
     
-    <!-- Data Source Selectors -->
-    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-        <!-- Connection Selector -->
-        <div class="flex items-center gap-1 sm:gap-2">
+        <!-- Dashboard Actions -->
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
             <label class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">📁 Source:</label>
             <select onchange="changeFile(this.value)" class="px-3 sm:px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm min-w-[140px] max-w-[200px] truncate shadow-sm hover:border-indigo-400 transition-all cursor-pointer">
                 {% if live_connections %}
@@ -283,7 +282,7 @@
     const chartData = {{ chart_data_json|safe }};
     
     // Live Dashboard Auto-Refresh
-    const currentConnectionId = {{ current_connection.id|default:"null" }};
+    const dashboardConnectionId = {{ current_connection.id|default:"null" }};
     const currentConnectionType = "{{ current_connection.connection_type|default:'' }}";
     const activeSheet = "{{ active_sheet|default:'' }}";
     let charts = {};
@@ -293,11 +292,11 @@
     
     // Function to update dashboard with live data
     async function refreshDashboardData() {
-        if (!currentConnectionId) return;
+        if (!dashboardConnectionId) return;
         
         try {
             const url = new URL('/api/dashboard/live/', window.location.origin);
-            url.searchParams.set('connection', currentConnectionId);
+            url.searchParams.set('connection', dashboardConnectionId);
             if (activeSheet) {
                 url.searchParams.set('sheet', activeSheet);
             }

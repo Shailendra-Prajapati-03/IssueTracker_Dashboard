@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.db import models
 from django.db.models import Count
 from django.contrib import messages
@@ -145,7 +146,7 @@ def dashboard(request):
     if current_connection:
         all_issues = Issue.objects.filter(connection=current_connection).order_by('-created_at')
     else:
-        all_issues = Issue.objects.all().order_by('-created_at')
+        all_issues = Issue.objects.none()
     
     # Get unique sheet names for current connection only - try to get from file if it's an upload
     sheet_names = []
@@ -625,10 +626,17 @@ def issues_list(request):
             current_connection = SheetConnection.objects.get(id=connection_id)
             issues = issues.filter(connection=current_connection)
         except (SheetConnection.DoesNotExist, ValueError):
-            pass
-    
-    # If no connection filter, but we have some issues, maybe we should default to latest?
-    # For now, let's keep it consistent with dashboard view logic if needed.
+            issues = Issue.objects.none()
+    else:
+        # If no connection specified, default to latest upload connection
+        current_connection = SheetConnection.objects.filter(
+            connection_type='upload'
+        ).order_by('-created_at').first()
+        
+        if current_connection:
+            issues = issues.filter(connection=current_connection)
+        else:
+            issues = Issue.objects.none()
     
     # Apply sheet filter (tab name)
     if sheet_filter:
@@ -854,6 +862,7 @@ def connections_list(request):
 
 def delete_connection(request, connection_id):
     """Delete a connection and its associated issues."""
+    filter_type = request.GET.get('filter', '')
     try:
         connection = SheetConnection.objects.get(id=connection_id)
         connection_name = connection.name
@@ -868,7 +877,39 @@ def delete_connection(request, connection_id):
     except SheetConnection.DoesNotExist:
         messages.error(request, 'Connection not found.')
     
-    return redirect('connections_list')
+    redirect_url = reverse('connections_list')
+    if filter_type:
+        redirect_url += f'?filter={filter_type}'
+    return redirect(redirect_url)
+
+
+def delete_all_connections(request):
+    """Delete all connections based on the current filter."""
+    filter_type = request.GET.get('filter', '')
+    
+    # Base queryset
+    connections = SheetConnection.objects.filter(is_active=True)
+    
+    # Apply filter
+    if filter_type == 'upload':
+        connections = connections.filter(connection_type='upload')
+    elif filter_type == 'live':
+        connections = connections.exclude(connection_type='upload')
+    
+    count = connections.count()
+    if count > 0:
+        # Delete associated issues first
+        Issue.objects.filter(connection__in=connections).delete()
+        # Delete the connections
+        connections.delete()
+        messages.success(request, f'Successfully deleted {count} connections and their data.')
+    else:
+        messages.info(request, 'No connections found to delete.')
+    
+    redirect_url = reverse('connections_list')
+    if filter_type:
+        redirect_url += f'?filter={filter_type}'
+    return redirect(redirect_url)
 
 
 def dashboard_live_data(request):
