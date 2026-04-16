@@ -77,12 +77,45 @@
             </div>
 
             <!-- Column Validation Error -->
-            <div id="columnError" class="hidden mt-5 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
+            <div id="columnError" class="hidden mt-5 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                 <div class="flex items-start">
-                    <i class="ph ph-warning-circle text-rose-500 text-lg mr-2 mt-0.5"></i>
-                    <div>
-                        <p class="text-sm font-semibold text-rose-700 dark:text-rose-400">Column Match Error</p>
-                        <p class="text-xs text-rose-600 dark:text-rose-500 mt-1" id="columnErrorMessage"></p>
+                    <i class="ph ph-magic-wand text-amber-500 text-xl mr-3 mt-0.5"></i>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-amber-800 dark:text-amber-400">Intelligent Mapping Required</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-500 mt-1" id="columnErrorMessage"></p>
+                        
+                        <!-- Manual Mapping UI -->
+                        <div id="manualMappingUI" class="mt-4 space-y-3 pt-3 border-t border-amber-200/50 dark:border-amber-800/50">
+                            <p class="text-[11px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Map Columns Manually:</p>
+                            <p id="mappingValidationMsg" class="text-[10px] text-rose-600 dark:text-rose-400 font-medium">Please map all required columns to continue</p>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Issue ID (Optional)</label>
+                                    <select name="map_issue_id" class="mapping-select w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-xs">
+                                        <option value="">-- Auto-generate IDs --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Component Name</label>
+                                    <select name="map_component_name" class="mapping-select w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-xs">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">Issue Message</label>
+                                    <select name="map_issue_message" class="mapping-select w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-xs">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1">MCM Comments</label>
+                                    <select name="map_mcm_comment" class="mapping-select w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-xs">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -172,7 +205,7 @@
                 </li>
                 <li class="flex items-start">
                     <i class="ph ph-check-circle text-emerald-500 mt-0.5 mr-2.5"></i>
-                    <span class="text-slate-600 dark:text-slate-300"><strong>Smart Mapping</strong>: System automatically detects columns like "ID", "Bug", "Section", etc.</span>
+                    <span class="text-slate-600 dark:text-slate-300"><strong>Intelligent Mapping</strong>: System automatically detects columns, and allows manual mapping if names don't match.</span>
                 </li>
                 <li class="flex items-start">
                     <i class="ph ph-info text-blue-500 mt-0.5 mr-2.5"></i>
@@ -220,9 +253,36 @@
                 // If Excel file, show sheet selector
                 if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
                     analyzeExcel(file);
+                } else {
+                    analyzeCSV(file);
                 }
             }
         });
+    }
+
+    // Analyze CSV file
+    function analyzeCSV(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('action', 'analyze');
+        
+        fetch('{% url "upload_csv" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show preview
+                showSheetPreview(data.preview);
+                // Validation is handled inside showSheetPreview for CSV
+            }
+        })
+        .catch(error => console.error('Error:', error));
     }
 
     // Analyze Excel file and show sheets
@@ -275,11 +335,40 @@
         const columnError = document.getElementById('columnError');
         const columnErrorMessage = document.getElementById('columnErrorMessage');
         
+        // Populate mapping dropdowns with detected columns
+        const mappingSelects = document.querySelectorAll('.mapping-select');
+        mappingSelects.forEach(select => {
+            const currentValue = select.value;
+            const isIssueId = select.getAttribute('name') === 'map_issue_id';
+            select.innerHTML = isIssueId ? '<option value="">-- Auto-generate IDs --</option>' : '<option value="">-- Select Column --</option>';
+            preview.columns.forEach(col => {
+                const option = document.createElement('option');
+                option.value = col;
+                option.textContent = col;
+                select.appendChild(option);
+            });
+            if (currentValue && preview.columns.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        });
+
         // Handle CSV validation (where sheet_info doesn't exist)
         if (preview.missing && preview.missing.length > 0) {
-            columnErrorMessage.textContent = `Column name not matching, required this column: ${preview.missing.join(', ')}`;
+            columnErrorMessage.textContent = `Auto-mapping failed for: ${preview.missing.join(', ')}. Please select columns manually below.`;
             columnError.classList.remove('hidden');
-            uploadBtn.disabled = true;
+            
+            // Try to pre-select if mapped
+            if (preview.mapped) {
+                if (preview.mapped.issue_id) document.querySelector('[name=map_issue_id]').value = preview.mapped.issue_id;
+                if (preview.mapped.component_name) document.querySelector('[name=map_component_name]').value = preview.mapped.component_name;
+                if (preview.mapped.issue_message) document.querySelector('[name=map_issue_message]').value = preview.mapped.issue_message;
+                if (preview.mapped.mcm_comment) document.querySelector('[name=map_mcm_comment]').value = preview.mapped.mcm_comment;
+            }
+            updateMappingStatus(); // Check if mapping is complete
+        } else if (preview.columns && preview.columns.length > 0 && !preview.missing) {
+             // For CSV with no missing columns, enable button
+             columnError.classList.add('hidden');
+             uploadBtn.disabled = false;
         } else if (!preview.missing) {
              // Excel handle via validateSelectedSheet
         } else {
@@ -316,6 +405,32 @@
         previewDiv.classList.remove('hidden');
     }
 
+    // Helper to check if mapping is complete
+    window.updateMappingStatus = function() {
+        const compName = document.querySelector('[name=map_component_name]').value;
+        const issueMsg = document.querySelector('[name=map_issue_message]').value;
+        const mcmComment = document.querySelector('[name=map_mcm_comment]').value;
+        const msgElement = document.getElementById('mappingValidationMsg');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        const isComplete = compName && issueMsg && mcmComment;
+        
+        if (isComplete) {
+            msgElement.textContent = "All required columns mapped successfully!";
+            msgElement.className = "text-[10px] text-emerald-600 dark:text-emerald-400 font-medium";
+            uploadBtn.disabled = false;
+        } else {
+            msgElement.textContent = "Please map all required columns to continue";
+            msgElement.className = "text-[10px] text-rose-600 dark:text-rose-400 font-medium";
+            uploadBtn.disabled = true;
+        }
+    }
+
+    // Listen for mapping changes
+    document.querySelectorAll('.mapping-select').forEach(select => {
+        select.addEventListener('change', updateMappingStatus);
+    });
+
     // Global scope helper for onclick attributes
     window.validateSelectedSheet = function() {
         const sheetSelect = document.getElementById('sheetSelect');
@@ -337,23 +452,33 @@
             }
             
             if (!someValid) {
-                columnErrorMessage.textContent = `None of the sheets match required columns. Missing in sheets:\n${allMissing.join('\n')}`;
+                columnErrorMessage.textContent = `Auto-mapping failed across all sheets. Please select a specific sheet or use manual mapping.`;
                 columnError.classList.remove('hidden');
-                uploadBtn.disabled = true;
+                updateMappingStatus(); // Check if mapping is complete
             } else if (allMissing.length > 0) {
-                columnErrorMessage.textContent = `Warning: Some sheets will be skipped due to missing columns:\n${allMissing.join('\n')}`;
+                columnErrorMessage.textContent = `Warning: Some sheets might have mapping issues. You can process anyway or select a specific sheet.`;
                 columnError.classList.remove('hidden');
-                uploadBtn.disabled = false;
+                uploadBtn.disabled = false; // Allow "All Sheets" if at least one is valid
             } else {
                 columnError.classList.add('hidden');
                 uploadBtn.disabled = false;
             }
         } else if (currentSheetInfo[selectedSheet]) {
             const missing = currentSheetInfo[selectedSheet].missing;
+            const mapped = currentSheetInfo[selectedSheet].mapped;
+            
+            // Populate mapping dropdowns with mapped columns for this sheet
+            if (mapped) {
+                if (mapped.issue_id) document.querySelector('[name=map_issue_id]').value = mapped.issue_id;
+                if (mapped.component_name) document.querySelector('[name=map_component_name]').value = mapped.component_name;
+                if (mapped.issue_message) document.querySelector('[name=map_issue_message]').value = mapped.issue_message;
+                if (mapped.mcm_comment) document.querySelector('[name=map_mcm_comment]').value = mapped.mcm_comment;
+            }
+
             if (missing.length > 0) {
-                columnErrorMessage.textContent = `Column name not matching, required this column: ${missing.join(', ')}`;
+                columnErrorMessage.textContent = `Auto-mapping failed for: ${missing.join(', ')}. Please verify the columns manually.`;
                 columnError.classList.remove('hidden');
-                uploadBtn.disabled = true;
+                updateMappingStatus(); // Check if mapping is complete
             } else {
                 columnError.classList.add('hidden');
                 uploadBtn.disabled = false;

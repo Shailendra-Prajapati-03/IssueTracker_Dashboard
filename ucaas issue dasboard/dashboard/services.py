@@ -49,17 +49,21 @@ def sync_google_sheets(connection):
             
             all_sheets_data = []
             
+            final_mapping = connection.column_mapping or {}
+            
             with pd.ExcelFile(xlsx_data) as xls:
                 # Process ALL sheets (tabs) to ensure they are all visible in the UI
                 for sheet_name in xls.sheet_names:
                     # Skip empty or internal sheets if any
                     df = pd.read_excel(xls, sheet_name=sheet_name)
-                    process_dataframe(df, sheet_name, all_sheets_data, connection)
+                    mapping = process_dataframe(df, sheet_name, all_sheets_data, connection, manual_mapping=connection.column_mapping)
+                    if mapping: final_mapping.update(mapping)
             
             # Save all issues from all tabs
             issues_to_create = [Issue(**data) for data in all_sheets_data]
             Issue.objects.bulk_create(issues_to_create)
             
+            connection.column_mapping = final_mapping
             connection.last_sync = timezone.now()
             connection.save()
             
@@ -90,10 +94,14 @@ def sync_excel_online(connection):
     )
 
 
-def sync_sheet_data(connection):
+def sync_sheet_data(connection, force=False):
     """
     Main sync function that routes to appropriate service.
+    Only syncs if needed (updates available) or if force=True.
     """
+    if not force and not check_for_updates(connection):
+        return {'success': True, 'message': 'Data is already up to date.'}
+
     if connection.connection_type == 'google_sheets':
         return sync_google_sheets(connection)
     elif connection.connection_type == 'excel_online':
@@ -103,11 +111,30 @@ def sync_sheet_data(connection):
         if connection.uploaded_file:
             from .utils import process_file
             Issue.objects.filter(connection=connection).delete()
-            all_sheets_data = process_file(connection.uploaded_file.path, connection=connection)
+            
+            # Use the stored sheet_name if it exists and is not "All Sheets" or similar
+            # If sheet_name was specifically set during upload, we should respect it during sync
+            target_sheet = connection.sheet_name
+            if target_sheet == 'Sheet1' and connection.connection_type == 'upload':
+                # Default value might mean "process all" if it wasn't explicitly set to Sheet1
+                # But to be safe, if we want to support "All Sheets", we need to check how it was saved
+                pass
+
+            all_results = process_file(
+                connection.uploaded_file.path, 
+                selected_sheet=connection.sheet_name if connection.sheet_name != 'Default' else None,
+                connection=connection, 
+                manual_mapping=connection.column_mapping
+            )
+            all_sheets_data = all_results.get('data', [])
             
             # Save all issues from all tabs
             issues_to_create = [Issue(**data) for data in all_sheets_data]
             Issue.objects.bulk_create(issues_to_create)
+            
+            # If mapping was updated during process, save it back
+            if all_results.get('mapping'):
+                connection.column_mapping = all_results.get('mapping')
             
             connection.last_sync = timezone.now()
             connection.save()
@@ -121,12 +148,23 @@ def check_for_updates(connection):
     Check if sheet has new data since last sync.
     Returns True if updates are available.
     """
-    # For now, always return True to trigger sync
-    # In production, this would compare sheet metadata/ETag
+    # For live sheets, we check the time since last sync (e.g. 5 minutes)
+    # For uploads, we can also use a similar logic or check file timestamp
     if not connection.last_sync:
         return True
     
-    # Check if more than 5 minutes since last sync
-    from datetime import timedelta
-    time_since_sync = timezone.now() - connection.last_sync
-    return time_since_sync > timedelta(minutes=5)
+    # Check if more than 10 minutes since last sync for live sheets
+    if connection.connection_type in ['google_sheets', 'excel_online']:
+        from datetime import timedelta
+        time_since_sync = timezone.now() - connection.last_sync
+        return time_since_sync > timedelta(minutes=10)
+    
+    # For uploads, we only sync if the database is empty (e.g. something went wrong)
+    # or if we explicitly trigger it.
+    # On page load, we don't want to re-process the file every time.
+    if connection.connection_type == 'upload':
+        # If issues exist, assume it's up to date.
+        # This prevents the delete-and-re-create cycle on every page load.
+        return not Issue.objects.filter(connection=connection).exists()
+    
+    return False

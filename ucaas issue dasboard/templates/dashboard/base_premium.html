@@ -326,7 +326,7 @@
         <main class="flex-1 ml-60 p-6">
         <!-- Messages -->
         {% if messages %}
-            <div class="mb-5 space-y-2.5">
+            <div id="messages-container" class="mb-5 space-y-2.5">
                 {% for message in messages %}
                     <div class="animate-fade-in flex items-center p-3.5 rounded-xl text-sm {% if message.tags == 'success' %}bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200{% elif message.tags == 'error' %}bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200{% else %}bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200{% endif %}">
                         <i class="ph {% if message.tags == 'success' %}ph-check-circle{% elif message.tags == 'error' %}ph-warning-circle{% else %}ph-info{% endif %} text-lg mr-2.5"></i>
@@ -377,10 +377,10 @@
 
         // Auto-hide messages after 10 seconds
         document.addEventListener('DOMContentLoaded', function() {
-            const messageContainer = document.querySelector('.mb-5.space-y-2.5');
+            const messageContainer = document.getElementById('messages-container');
             if (messageContainer) {
-                const messages = messageContainer.querySelectorAll('.animate-fade-in');
-                messages.forEach(message => {
+                const messages = messageContainer.children;
+                Array.from(messages).forEach(message => {
                     setTimeout(() => {
                         // Add fade-out animation before removal
                         message.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
@@ -390,7 +390,7 @@
                         setTimeout(() => {
                             message.remove();
                             // If no messages left, remove container to reclaim space
-                            if (messageContainer.querySelectorAll('.animate-fade-in').length === 0) {
+                            if (messageContainer.children.length === 0) {
                                 messageContainer.remove();
                             }
                         }, 500);

@@ -157,7 +157,7 @@ def map_columns(df_columns):
 
     return mapped_cols, missing_cols
 
-def process_file(file_path, selected_sheet=None, connection=None):
+def process_file(file_path, selected_sheet=None, connection=None, manual_mapping=None):
     """
     Process file and save issues to database.
     
@@ -165,38 +165,86 @@ def process_file(file_path, selected_sheet=None, connection=None):
         file_path: Path to the file
         selected_sheet: Specific sheet to process (optional)
         connection: SheetConnection object to link issues (optional)
+        manual_mapping: Dictionary of user-selected column mappings (optional)
     """
     all_sheets_data = []
+    final_mapping = {}
     try:
         if file_path.endswith(('.xlsx', '.xls')):
             with pd.ExcelFile(file_path) as xls:
                 if selected_sheet and selected_sheet in xls.sheet_names:
                     # Process only selected sheet
                     df = pd.read_excel(xls, sheet_name=selected_sheet)
-                    process_dataframe(df, selected_sheet, all_sheets_data, connection)
+                    mapping = process_dataframe(df, selected_sheet, all_sheets_data, connection, manual_mapping)
+                    if mapping: final_mapping.update(mapping)
                 else:
-                    # Process all sheets
+                    # Process all sheets by combining them into one DataFrame
+                    all_dfs = []
                     for sheet_name in xls.sheet_names:
                         df = pd.read_excel(xls, sheet_name=sheet_name)
-                        process_dataframe(df, sheet_name, all_sheets_data, connection)
+                        if not df.empty:
+                            # Keep track of original sheet name for each row
+                            df['_source_sheet_name'] = sheet_name
+                            all_dfs.append(df)
+                    
+                    if all_dfs:
+                        # Combine all sheets
+                        combined_df = pd.concat(all_dfs, ignore_index=True)
+                        # Process the combined dataframe. We pass 'All Sheets' as default, 
+                        # but process_dataframe will use _source_sheet_name
+                        mapping = process_dataframe(combined_df, 'All Sheets', all_sheets_data, connection, manual_mapping)
+                        if mapping: final_mapping.update(mapping)
         elif file_path.endswith('.csv'):
             df = pd.read_csv(file_path)
-            process_dataframe(df, 'Default', all_sheets_data, connection)
-        return all_sheets_data
+            mapping = process_dataframe(df, 'Default', all_sheets_data, connection, manual_mapping)
+            if mapping: final_mapping.update(mapping)
+        return {'data': all_sheets_data, 'mapping': final_mapping}
     except Exception as e:
         print(f"Error processing file: {e}")
-        return []
+        return {'data': [], 'mapping': {}}
 
-def process_dataframe(df, sheet_name, all_sheets_data, connection=None):
+def normalize_dataframe(df, manual_mapping=None):
     """
-    Process DataFrame and extract issue data.
+    Standardize DataFrame columns using auto-detection and manual mapping.
+    Renames columns to internal standardized keys.
+    Returns: (df, actual_cols, missing_cols)
     """
     actual_cols, missing_cols = map_columns(df.columns)
     
+    # If manual mapping is provided, override the auto-detected columns
+    if manual_mapping:
+        for key, val in manual_mapping.items():
+            if val and val in df.columns:
+                actual_cols[key] = val
+                # If this key was in missing_cols, remove it since it's now mapped
+                standard_name = {
+                    'issue_id': 'Issue ID',
+                    'component_name': 'Component Name',
+                    'issue_message': 'Issue Message',
+                    'mcm_comment': 'MCM Comments'
+                }.get(key)
+                if standard_name in missing_cols:
+                    missing_cols.remove(standard_name)
+    
+    # Create a rename map: {original_column_name: standardized_key}
+    # We only care about columns we actually found
+    rename_map = {v: k for k, v in actual_cols.items() if v}
+    
+    # Rename the columns in the DataFrame
+    return df.rename(columns=rename_map), actual_cols, missing_cols
+
+def process_dataframe(df, sheet_name, all_sheets_data, connection=None, manual_mapping=None):
+    """
+    Process DataFrame and extract issue data.
+    Returns: The final mapped_cols used for this dataframe
+    """
+    # Normalize the DataFrame first - this renames columns to standardized keys
+    df, mapped_cols, missing_cols = normalize_dataframe(df, manual_mapping)
+    
     # DEBUG: Print found columns
     print(f"\n=== Processing Sheet: {sheet_name} ===")
-    print(f"Available columns: {list(df.columns)}")
-    print(f"Mapped columns: {actual_cols}")
+    print(f"Original columns: {list(df.columns)}")
+    print(f"Mapped columns: {mapped_cols}")
     
     # If required columns are missing, we still want to show the tab if it has any data
     if missing_cols:
@@ -217,14 +265,14 @@ def process_dataframe(df, sheet_name, all_sheets_data, connection=None):
 
     rows_added = 0
     for index, row in df.iterrows():
-        # Skip blank rows - check if issue_message or mcm_comment is empty
-        issue_val = ""
-        if actual_cols['issue_message'] and not pd.isna(row[actual_cols['issue_message']]):
-            issue_val = str(row[actual_cols['issue_message']]).strip()
+        # Get standard fields from normalized columns
+        issue_val = str(row.get('issue_message', '')).strip() if not pd.isna(row.get('issue_message')) else ""
+        mcm_val = str(row.get('mcm_comment', '')).strip() if not pd.isna(row.get('mcm_comment')) else ""
         
-        mcm_val = ""
-        if actual_cols['mcm_comment'] and not pd.isna(row[actual_cols['mcm_comment']]):
-            mcm_val = str(row[actual_cols['mcm_comment']]).strip()
+        # Determine actual sheet name for this row (important when processing combined dfs)
+        actual_sheet_name = str(row.get('_source_sheet_name', sheet_name))
+        if pd.isna(row.get('_source_sheet_name')):
+            actual_sheet_name = sheet_name
         
         # Skip if both issue and comment are empty
         if not issue_val and not mcm_val:
@@ -234,91 +282,53 @@ def process_dataframe(df, sheet_name, all_sheets_data, connection=None):
         if issue_val in ['', 'nan', 'None', '-'] and mcm_val in ['', 'nan', 'None', '-']:
             continue
         
-        # Get MCM Comment - used ONLY for status classification
-        mcm_text = mcm_val
-        
         # Classify status based on MCM Comment content
-        status = classify_status(mcm_text)
+        status = classify_status(mcm_val)
         
         # Get Issue ID - Handle numbers/floats properly
         issue_id = f"ID-{index + 1:04d}"
-        if actual_cols['issue_id'] and not pd.isna(row[actual_cols['issue_id']]):
-            val = row[actual_cols['issue_id']]
-            if isinstance(val, float) and val.is_integer():
-                issue_id = str(int(val))
+        raw_id = row.get('issue_id')
+        if not pd.isna(raw_id):
+            if isinstance(raw_id, float) and raw_id.is_integer():
+                issue_id = str(int(raw_id))
             else:
-                issue_id = str(val).strip()
+                issue_id = str(raw_id).strip()
+        
+        # Ensure we have an ID even if mapping exists but value is blank
+        if not issue_id or str(issue_id).lower() in ['nan', 'none', '']:
+            issue_id = f"ID-{index + 1:04d}"
         
         # Get Component Name
         component = ""
-        if actual_cols['component_name'] and not pd.isna(row[actual_cols['component_name']]):
-            val = row[actual_cols['component_name']]
-            if isinstance(val, float) and val.is_integer():
-                component = str(int(val))
+        raw_comp = row.get('component_name')
+        if not pd.isna(raw_comp):
+            if isinstance(raw_comp, float) and raw_comp.is_integer():
+                component = str(int(raw_comp))
             else:
-                component = str(val).strip()
+                component = str(raw_comp).strip()
         
-        # CRITICAL: Get Issue Message from "Issues" column - THIS IS DISPLAYED IN UI
-        issue_msg = "No message provided"
-        if actual_cols['issue_message'] and not pd.isna(row[actual_cols['issue_message']]):
-            val = row[actual_cols['issue_message']]
-            if isinstance(val, float) and val.is_integer():
-                issue_msg = str(int(val))
-            else:
-                issue_msg = str(val).strip()
-        
-        # Get Screenshot URL
-        screenshot = ""
-        if actual_cols['screenshot_url'] and not pd.isna(row[actual_cols['screenshot_url']]):
-            screenshot = str(row[actual_cols['screenshot_url']])
-        
-        # Get Capanicus Comment
-        capanicus = ""
-        if actual_cols['capanicus_comment'] and not pd.isna(row[actual_cols['capanicus_comment']]):
-            capanicus = str(row[actual_cols['capanicus_comment']])
-        
-        # Get Planned Hours
-        planned_hrs = 0
-        if actual_cols['planned_hours'] and not pd.isna(row[actual_cols['planned_hours']]):
+        # Standardize numerical fields
+        def to_float(val):
             try:
-                planned_hrs = float(row[actual_cols['planned_hours']])
-            except (ValueError, TypeError):
-                planned_hrs = 0
-        
-        # Get Utilized Hours
-        utilized_hrs = 0
-        if actual_cols['utilized_hours'] and not pd.isna(row[actual_cols['utilized_hours']]):
-            try:
-                utilized_hrs = float(row[actual_cols['utilized_hours']])
-            except (ValueError, TypeError):
-                utilized_hrs = 0
-        
-        # Get Resource
-        resource_name = ""
-        if actual_cols['resource'] and not pd.isna(row[actual_cols['resource']]):
-            resource_name = str(row[actual_cols['resource']])
-        
-        # Get Priority
-        priority_val = ""
-        if actual_cols['priority'] and not pd.isna(row[actual_cols['priority']]):
-            priority_val = str(row[actual_cols['priority']])
-            
+                return float(val) if not pd.isna(val) else 0.0
+            except:
+                return 0.0
+
         issue_data = {
-            'sheet_name': sheet_name,
+            'sheet_name': actual_sheet_name,
             'issue_id': issue_id,
             'component_name': component,
-            'issue_message': issue_msg,      # From "Issues" column - DISPLAYED IN UI
-            'screenshot_url': screenshot,
-            'capanicus_comment': capanicus,
-            'mcm_comment': mcm_text,          # From "MCM Comments" column - STATUS ONLY
+            'issue_message': issue_val or "No message provided",
+            'screenshot_url': str(row.get('screenshot_url', '')) if not pd.isna(row.get('screenshot_url')) else "",
+            'capanicus_comment': str(row.get('capanicus_comment', '')) if not pd.isna(row.get('capanicus_comment')) else "",
+            'mcm_comment': mcm_val,
             'status': status,
-            'planned_hours': planned_hrs,
-            'utilized_hours': utilized_hrs,
-            'resource': resource_name,
-            'priority': priority_val,
+            'planned_hours': to_float(row.get('planned_hours')),
+            'utilized_hours': to_float(row.get('utilized_hours')),
+            'resource': str(row.get('resource', '')) if not pd.isna(row.get('resource')) else "",
+            'priority': str(row.get('priority', '')) if not pd.isna(row.get('priority')) else "",
         }
         
-        # Add connection if provided
         if connection:
             issue_data['connection'] = connection
         
@@ -336,3 +346,5 @@ def process_dataframe(df, sheet_name, all_sheets_data, connection=None):
             'connection': connection
         }
         all_sheets_data.append(issue_data)
+    
+    return mapped_cols

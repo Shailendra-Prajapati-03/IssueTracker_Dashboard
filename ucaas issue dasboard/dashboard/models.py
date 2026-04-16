@@ -23,6 +23,7 @@ class SheetConnection(models.Model):
     # Metadata
     is_active = models.BooleanField(default=True)
     last_sync = models.DateTimeField(null=True, blank=True)
+    column_mapping = models.JSONField(blank=True, null=True, help_text="User-selected column mapping for this connection")
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

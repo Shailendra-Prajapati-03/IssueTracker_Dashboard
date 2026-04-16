@@ -20,7 +20,7 @@ def get_chart_stats(sheet_name=None, connection=None):
     all_issues = Issue.objects.all()
     if connection:
         all_issues = all_issues.filter(connection=connection)
-    if sheet_name:
+    if sheet_name and sheet_name != 'all':
         all_issues = all_issues.filter(sheet_name=sheet_name)
     all_issues = all_issues.order_by('-created_at')
     
@@ -168,8 +168,8 @@ def dashboard(request):
     
     sheet_names = list(dict.fromkeys(sheet_names))
 
-    # If sheet_name is empty string, treat as "All Sheets" (no filter)
-    if sheet_name == '':
+    # If sheet_name is empty string or 'all', treat as "All Sheets" (no filter)
+    if sheet_name == '' or sheet_name == 'all':
         sheet_name = None
 
     # Filter by sheet if specified
@@ -479,7 +479,27 @@ def upload_csv(request):
                     messages.error(request, msg)
                     return redirect('upload_csv')
             
-            all_data = process_file(upload.file.path, selected_sheet, connection=connection)
+            # Get manual mappings if any
+            manual_mapping = {
+                'issue_id': request.POST.get('map_issue_id'),
+                'component_name': request.POST.get('map_component_name'),
+                'issue_message': request.POST.get('map_issue_message'),
+                'mcm_comment': request.POST.get('map_mcm_comment'),
+            }
+            # Remove empty mappings
+            manual_mapping = {k: v for k, v in manual_mapping.items() if v}
+            
+            # Save mapping to connection for future syncs
+            # If we want consistency, we should ideally store the FULL mapping (auto + manual)
+            # For now, let's make sure it's saved correctly
+            if manual_mapping:
+                connection.column_mapping = manual_mapping
+                connection.save()
+            
+            # If it's a new upload, we might want to run a full analysis to get all columns
+            # if the user didn't provide all of them manually
+            all_results = process_file(upload.file.path, selected_sheet, connection=connection, manual_mapping=manual_mapping)
+            all_data = all_results.get('data', [])
             
             if not all_data:
                 connection.delete()
@@ -488,6 +508,12 @@ def upload_csv(request):
                 messages.error(request, "Failed to process file. Ensure columns are correct.")
                 return redirect('upload_csv')
 
+            # Get the actual mapping used during processing and save it
+            # This ensures future syncs use EXACTLY the same mapping
+            if all_results.get('mapping'):
+                connection.column_mapping = all_results.get('mapping')
+                connection.save()
+            
             # Save issues with connection
             issues_to_create = [
                 Issue(
@@ -614,6 +640,8 @@ def issues_list(request):
     status_filter = request.GET.get('status', '')
     search_query = request.GET.get('search', '')
     sheet_filter = request.GET.get('sheet', '')
+    if sheet_filter == 'all':
+        sheet_filter = ''
     connection_id = request.GET.get('connection', '')
     
     # Base queryset
@@ -724,9 +752,36 @@ def connect_sheet(request):
                 # Process the uploaded file
                 try:
                     from .utils import process_file
-                    process_file(connection.uploaded_file.path, connection=connection)
+                    all_results = process_file(connection.uploaded_file.path, connection=connection)
+                    all_data = all_results.get('data', [])
+                    
+                    if all_results.get('mapping'):
+                        connection.column_mapping = all_results.get('mapping')
+                    
                     connection.last_sync = timezone.now()
                     connection.save()
+                    
+                    # Save issues with connection
+                    if all_data:
+                        issues_to_create = [
+                            Issue(
+                                connection=connection,
+                                sheet_name=res.get('sheet_name'),
+                                issue_id=res.get('issue_id'),
+                                component_name=res.get('component_name'),
+                                issue_message=res.get('issue_message'),
+                                screenshot_url=res.get('screenshot_url'),
+                                capanicus_comment=res.get('capanicus_comment'),
+                                mcm_comment=res.get('mcm_comment'),
+                                status=res['status'],
+                                planned_hours=res.get('planned_hours', 0),
+                                utilized_hours=res.get('utilized_hours', 0),
+                                resource=res.get('resource', ''),
+                                priority=res.get('priority', '')
+                            ) for res in all_data
+                        ]
+                        Issue.objects.bulk_create(issues_to_create)
+
                     messages.success(request, f'File uploaded successfully! {connection.name} is now connected.')
                     return redirect(f'/dashboard/?connection={connection.id}')
                 except Exception as e:
@@ -955,6 +1010,9 @@ def dashboard_live_data(request):
     connection_id = request.GET.get('connection')
     sheet_name = request.GET.get('sheet', None)
     
+    if sheet_name == '' or sheet_name == 'all':
+        sheet_name = None
+    
     if not connection_id:
         return JsonResponse({'error': 'Connection ID required'}, status=400)
     
@@ -977,7 +1035,7 @@ def dashboard_live_data(request):
     
     # Get issues
     all_issues = Issue.objects.filter(connection=connection)
-    if sheet_name:
+    if sheet_name and sheet_name != 'all':
         all_issues = all_issues.filter(sheet_name=sheet_name)
     all_issues = all_issues.order_by('-created_at')[:15]
     
