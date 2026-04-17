@@ -105,7 +105,7 @@
         
         <div class="space-y-2">
             {% for conn in connections %}
-            <div class="group flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
+            <div id="connection-{{ conn.id }}" class="group flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110
                         {% if conn.connection_type == 'google_sheets' %}
@@ -147,7 +147,7 @@
                     </a>
 
                     <form method="post" action="{% url 'delete_connection' conn.id %}" 
-                          onsubmit="return confirm('Are you sure you want to delete &quot;{{ conn.name }}&quot;?');"
+                          onsubmit="deleteConnectionAsync(event, this, '{{ conn.id }}', '{{ conn.name|escapejs }}');"
                           class="inline">
                         {% csrf_token %}
                         <button type="submit" 
@@ -198,4 +198,64 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function deleteConnectionAsync(event, formElement, connId, connName) {
+        event.preventDefault(); // Prevent full page reload
+        
+        if (!confirm(`Are you sure you want to delete "${connName}"?`)) {
+            return;
+        }
+
+        const url = formElement.action;
+        const formData = new FormData(formElement);
+
+        try {
+            // We use fetch to submit the POST request
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            // The backend currently responds with a redirect (302) which fetch follows,
+            // or if we adjust backend to return JSON, it would be cleaner.
+            // Even if it redirects, the deletion happens.
+            // We can just remove the element from the DOM if the request didn't fail.
+            if (response.ok || response.redirected) {
+                const connectionDiv = document.getElementById(`connection-${connId}`);
+                if (connectionDiv) {
+                    // Fade out animation
+                    connectionDiv.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    connectionDiv.style.opacity = '0';
+                    connectionDiv.style.transform = 'scale(0.95)';
+                    
+                    setTimeout(() => {
+                        connectionDiv.remove();
+                        
+                        // Check if list is empty, maybe show empty state
+                        const container = document.querySelector('.space-y-2');
+                        if (container && container.children.length === 0) {
+                            // Optionally reload to show the empty state or just hide the container
+                            window.location.reload(); 
+                        }
+                    }, 300);
+                }
+                
+                // Show a toast notification if desired
+                // alert(`${connName} deleted successfully.`);
+            } else {
+                console.error("Failed to delete the connection.");
+                alert("Failed to delete the connection. Please try again.");
+            }
+        } catch (error) {
+            console.error('Error deleting connection:', error);
+            alert("An error occurred while deleting the connection.");
+        }
+    }
+</script>
 {% endblock %}

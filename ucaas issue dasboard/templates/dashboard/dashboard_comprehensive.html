@@ -76,27 +76,27 @@
 <!-- Top KPI Cards Row -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
     <!-- Total Issues -->
-    <a href="{% url 'issues_list' %}?connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer" data-stat="total">
+    <a href="javascript:void(0)" onclick="setFilter('status', '')" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer ring-2 ring-transparent transition-shadow" id="card-total">
         <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Total Issues</p>
-        <p class="text-xl font-bold text-slate-900 dark:text-white">{{ stats.total_count|default:"0" }}</p>
+        <p class="text-xl font-bold text-slate-900 dark:text-white" data-stat="total">{{ stats.total_count|default:"0" }}</p>
     </a>
     
     <!-- Fixed Issues -->
-    <a href="{% url 'issues_list' %}?status=Fixed&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all cursor-pointer" data-stat="fixed">
+    <a href="javascript:void(0)" onclick="setFilter('status', 'Fixed')" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all cursor-pointer ring-2 ring-transparent transition-shadow" id="card-fixed">
         <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Fixed Issues</p>
-        <p class="text-xl font-bold text-teal-600">{{ stats.fixed_count|default:"0" }}</p>
+        <p class="text-xl font-bold text-teal-600" data-stat="fixed">{{ stats.fixed_count|default:"0" }}</p>
     </a>
     
     <!-- Pending Issues -->
-    <a href="{% url 'issues_list' %}?status=Pending&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all cursor-pointer" data-stat="pending">
+    <a href="javascript:void(0)" onclick="setFilter('status', 'Pending')" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all cursor-pointer ring-2 ring-transparent transition-shadow" id="card-pending">
         <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Pending Issues</p>
-        <p class="text-xl font-bold text-rose-500">{{ stats.pending_count|default:"0" }}</p>
+        <p class="text-xl font-bold text-rose-500" data-stat="pending">{{ stats.pending_count|default:"0" }}</p>
     </a>
     
     <!-- Unknown Issues -->
-    <a href="{% url 'issues_list' %}?status=Unknown&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all cursor-pointer" data-stat="unknown">
+    <a href="javascript:void(0)" onclick="setFilter('status', 'Unknown')" class="block bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all cursor-pointer ring-2 ring-transparent transition-shadow" id="card-unknown">
         <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-0.5">Unknown Issues</p>
-        <p class="text-xl font-bold text-amber-500">{{ stats.unknown_count|default:"0" }}</p>
+        <p class="text-xl font-bold text-amber-500" data-stat="unknown">{{ stats.unknown_count|default:"0" }}</p>
     </a>
 </div>
 
@@ -106,7 +106,7 @@
     <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
         <div class="flex items-center justify-between mb-3">
             <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-300">Issues by Component</h4>
-            <span class="text-[10px] px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full">{{ stats.total_count|default:"0" }} Total</span>
+            <span class="text-[10px] px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full">{{ stats.component_chart_total|default:"0" }} Total</span>
         </div>
         <div class="flex items-start">
             <div class="w-[40%] relative" style="height: 160px;">
@@ -114,7 +114,7 @@
             </div>
             <div class="w-[60%] pl-3 text-[10px]" id="teamRolesLegend">
                 <!-- Legend items with colors - showing actual component names from data -->
-                {% for label in stats.comp_labels|slice:":8" %}
+                {% for label in stats.comp_labels %}
                 <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-700 last:border-0">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:{% cycle '#ec4899' '#f97316' '#8b5cf6' '#14b8a6' '#3b82f6' '#f59e0b' '#ef4444' '#10b981' %}"></span>
@@ -195,11 +195,11 @@
                         <th class="px-2 py-2 text-center font-medium">%</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="resource-summary-body">
                     {% for resource in stats.resource_stats %}
                     <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td class="px-2 py-2 font-medium text-slate-700 dark:text-slate-200">
-                            <a href="{% url 'issues_list' %}?search={{ resource.component_name|urlencode }}&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="hover:text-indigo-600 transition-colors">
+                            <a href="javascript:void(0)" onclick="setFilter('search', '{{ resource.component_name|escapejs }}')" class="hover:text-indigo-600 transition-colors">
                                 {{ resource.component_name|truncatechars:20 }}
                             </a>
                         </td>
@@ -240,10 +240,10 @@
 <!-- Issues Table Section -->
 <div class="mt-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
     <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-3">
-        <a href="{% url 'issues_list' %}?connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors">View All Issues</a>
-        <a href="{% url 'issues_list' %}?status=Fixed&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Fixed</a>
-        <a href="{% url 'issues_list' %}?status=Pending&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Pending</a>
-        <a href="{% url 'issues_list' %}?status=Unknown&connection={{ current_connection.id }}{% if active_sheet %}&sheet={{ active_sheet|urlencode }}{% endif %}" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Unknown</a>
+        <a href="javascript:void(0)" onclick="setFilter('status', '')" class="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors" id="btn-total">View All Issues</a>
+        <a href="javascript:void(0)" onclick="setFilter('status', 'Fixed')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" id="btn-fixed">Fixed</a>
+        <a href="javascript:void(0)" onclick="setFilter('status', 'Pending')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" id="btn-pending">Pending</a>
+        <a href="javascript:void(0)" onclick="setFilter('status', 'Unknown')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" id="btn-unknown">Unknown</a>
         
         <div class="flex items-center gap-2 ml-auto">
             <a href="{% url 'upload_csv' %}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
@@ -264,11 +264,56 @@
     // Live Dashboard Auto-Refresh
     const dashboardConnectionId = {{ current_connection.id|default:"null" }};
     const currentConnectionType = "{{ current_connection.connection_type|default:'' }}";
-    const activeSheet = "{{ active_sheet|default:'' }}";
+    
+    let currentFilters = {
+        sheet: "{{ active_sheet|default:'' }}",
+        status: "{{ current_status|default:'' }}",
+        search: "{{ search_query|default:'' }}"
+    };
+    
     let charts = {};
     
     // Check if this is a live connection (Google Sheets or Excel Online)
     const isLiveConnection = currentConnectionType === 'google_sheets' || currentConnectionType === 'excel_online';
+    
+    // Function to set a filter and trigger an update without reloading the page
+    function setFilter(type, value) {
+        currentFilters[type] = value;
+        refreshDashboardData();
+        updateActiveUI();
+    }
+    
+    // Visually update the active states of buttons/cards based on filters
+    function updateActiveUI() {
+        // Update top cards
+        const statuses = ['', 'Fixed', 'Pending', 'Unknown'];
+        const types = ['total', 'fixed', 'pending', 'unknown'];
+        
+        statuses.forEach((s, i) => {
+            const card = document.getElementById(`card-${types[i]}`);
+            const btn = document.getElementById(`btn-${types[i]}`);
+            if (!card || !btn) return;
+            
+            if (currentFilters.status === s) {
+                card.classList.add('ring-indigo-500', 'dark:ring-indigo-400');
+                btn.classList.add('bg-indigo-600', 'text-white');
+                btn.classList.remove('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200');
+            } else {
+                card.classList.remove('ring-indigo-500', 'dark:ring-indigo-400');
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-200');
+            }
+        });
+        
+        // Ensure "View All Issues" button defaults to primary styling if no status is selected
+        const btnTotal = document.getElementById('btn-total');
+        if (currentFilters.status === '') {
+            btnTotal.classList.add('bg-teal-500', 'text-white');
+            btnTotal.classList.remove('bg-indigo-600', 'bg-slate-100', 'dark:bg-slate-700');
+        } else {
+            btnTotal.classList.remove('bg-teal-500');
+        }
+    }
     
     // Function to update dashboard with live data
     async function refreshDashboardData() {
@@ -277,22 +322,22 @@
         try {
             const url = new URL('/api/dashboard/live/', window.location.origin);
             url.searchParams.set('connection', dashboardConnectionId);
-            if (activeSheet) {
-                url.searchParams.set('sheet', activeSheet);
-            }
+            if (currentFilters.sheet) url.searchParams.set('sheet', currentFilters.sheet);
+            if (currentFilters.status) url.searchParams.set('status', currentFilters.status);
+            if (currentFilters.search) url.searchParams.set('search', currentFilters.search);
+            
+            // Add a subtle loading indicator
+            document.body.classList.add('cursor-wait');
             
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch');
             
             const data = await response.json();
             
-            // Update stats cards
+            // Update UI components seamlessly
             updateStatsCards(data.stats);
-            
-            // Update charts
             updateCharts(data.stats);
-            
-            // Update issues table
+            updateResourceTable(data.stats);
             updateIssuesTable(data.issues);
             
             // Show last sync time
@@ -302,6 +347,8 @@
             
         } catch (error) {
             console.error('Live refresh error:', error);
+        } finally {
+            document.body.classList.remove('cursor-wait');
         }
     }
     
@@ -340,7 +387,26 @@
             charts.teamRoles.update('none');
         }
         
-        // Removed status/component charts
+        // Update Planned vs Actual Bar Chart
+        if (charts.plannedActual && stats.comp_labels) {
+            charts.plannedActual.data.labels = stats.comp_labels.slice(0, 4);
+            charts.plannedActual.data.datasets[0].data = stats.comp_total.slice(0, 4);
+            charts.plannedActual.data.datasets[1].data = stats.comp_fixed.slice(0, 4);
+            charts.plannedActual.update('none');
+        }
+        
+        // Update Component Status Chart
+        if (charts.componentStatus && stats.comp_labels) {
+            charts.componentStatus.data.labels = stats.comp_labels.slice(0, 8);
+            charts.componentStatus.data.datasets[0].data = stats.comp_fixed.slice(0, 8);
+            charts.componentStatus.data.datasets[1].data = stats.comp_pending.slice(0, 8);
+            
+            const unknownData = stats.comp_total.slice(0, 8).map((total, i) => {
+                return total - (stats.comp_fixed[i] || 0) - (stats.comp_pending[i] || 0);
+            });
+            charts.componentStatus.data.datasets[2].data = unknownData;
+            charts.componentStatus.update('none');
+        }
         
         // Update Completion Gauge
         if (charts.completion && stats.completion_rate !== undefined) {
@@ -348,6 +414,66 @@
             charts.completion.data.datasets[0].data = [stats.completion_rate, remainingRate];
             charts.completion.update('none');
         }
+        
+        // Update Legend manually
+        updateChartLegend(stats);
+    }
+    
+    function updateChartLegend(stats) {
+        const legendContainer = document.getElementById('teamRolesLegend');
+        if (!legendContainer || !stats.comp_labels) return;
+        
+        const colors = ['#ec4899', '#f97316', '#8b5cf6', '#14b8a6', '#3b82f6', '#f59e0b', '#ef4444', '#10b981'];
+        
+        let html = '';
+        stats.comp_labels.forEach((label, i) => {
+            const color = colors[i % colors.length];
+            const total = stats.comp_total[i] || 0;
+            html += `
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${color}"></span>
+                        <span class="text-slate-700 dark:text-slate-300 truncate max-w-[80px]" title="${label}">${label.substring(0,12)}</span>
+                    </div>
+                    <span class="font-semibold text-slate-900 dark:text-white">${total}</span>
+                </div>
+            `;
+        });
+        legendContainer.innerHTML = html;
+    }
+    
+    // Update Resource Summary Table
+    function updateResourceTable(stats) {
+        const tbody = document.getElementById('resource-summary-body');
+        if (!tbody || !stats.resource_stats) return;
+        
+        if (stats.resource_stats.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-2 py-4 text-center text-slate-400">No data available</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = stats.resource_stats.map(resource => {
+            const completionPct = resource.total > 0 ? Math.round((resource.fixed / resource.total) * 100) : 0;
+            let colorClass = 'text-rose-600';
+            if (completionPct >= 80) colorClass = 'text-teal-600';
+            else if (completionPct >= 50) colorClass = 'text-yellow-600';
+            
+            return `
+                <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td class="px-2 py-2 font-medium text-slate-700 dark:text-slate-200">
+                        <a href="javascript:void(0)" onclick="setFilter('search', '${resource.component_name}')" class="hover:text-indigo-600 transition-colors">
+                            ${resource.component_name.substring(0, 20)}
+                        </a>
+                    </td>
+                    <td class="px-2 py-2 text-center">${resource.total}</td>
+                    <td class="px-2 py-2 text-center text-teal-600">${resource.fixed}</td>
+                    <td class="px-2 py-2 text-center text-rose-500">${resource.pending}</td>
+                    <td class="px-2 py-2 text-center">
+                        <span class="${colorClass}">${completionPct}%</span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
     
     // Update issues table
@@ -430,7 +556,7 @@
 
     // Planned vs Actual Bar Chart
     const plannedActualCtx = document.getElementById('plannedActualChart').getContext('2d');
-    new Chart(plannedActualCtx, {
+    charts.plannedActual = new Chart(plannedActualCtx, {
         type: 'bar',
         data: {
             labels: chartData.comp_labels.slice(0, 4),
@@ -488,7 +614,7 @@
 
     // Component Status Stacked Bar Chart - Shows Fixed/Pending/Unknown per Component
     const componentStatusCtx = document.getElementById('componentStatusChart').getContext('2d');
-    new Chart(componentStatusCtx, {
+    charts.componentStatus = new Chart(componentStatusCtx, {
         type: 'bar',
         data: {
             labels: chartData.comp_labels.slice(0, 8),
@@ -524,11 +650,9 @@
         }
     });
 
-    // Change sheet function
+    // Change sheet function (Legacy)
     function changeSheet(sheetName) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('sheet', sheetName);
-        window.location.href = url.toString();
+        setFilter('sheet', sheetName);
     }
     
     // Change uploaded file
@@ -543,13 +667,11 @@
     
     // Change sheet tab
     function changeTab(sheetName) {
-        const url = new URL(window.location.href);
         if (sheetName === 'all') {
-            url.searchParams.delete('sheet');
+            setFilter('sheet', '');
         } else {
-            url.searchParams.set('sheet', sheetName);
+            setFilter('sheet', sheetName);
         }
-        window.location.href = url.toString();
     }
     
     // Legacy function (keep for compatibility)

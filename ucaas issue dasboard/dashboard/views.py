@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, Case, When, Value, CharField, Q
 from django.contrib import messages
 from .models import Issue, CSVUpload, SheetConnection
 from .forms import CSVUploadForm, SheetConnectionForm
@@ -16,12 +16,20 @@ from django.utils import timezone
 from .utils import classify_status_detailed
 import pandas as pd
 
-def get_chart_stats(sheet_name=None, connection=None):
+def get_chart_stats(sheet_name=None, connection=None, status_filter=None, search_query=None):
     all_issues = Issue.objects.all()
     if connection:
         all_issues = all_issues.filter(connection=connection)
     if sheet_name and sheet_name != 'all':
         all_issues = all_issues.filter(sheet_name=sheet_name)
+    if status_filter:
+        all_issues = all_issues.filter(status=status_filter)
+    if search_query:
+        all_issues = all_issues.filter(
+            Q(issue_message__icontains=search_query) |
+            Q(component_name__icontains=search_query) |
+            Q(issue_id__icontains=search_query)
+        )
     all_issues = all_issues.order_by('-created_at')
     
     total_count = all_issues.count()
@@ -34,22 +42,31 @@ def get_chart_stats(sheet_name=None, connection=None):
     pending_pct = round((pending_count / total_count * 100), 1) if total_count > 0 else 0
     
     # Component stats with more details
-    # Filter out status values that were mistakenly saved as component names
-    excluded_values = ['Unknown', 'Pending', 'Fixed', 'Feature', '']
-    component_stats = all_issues.exclude(
-        component_name__in=excluded_values
-    ).exclude(
-        component_name__isnull=True
-    ).values('component_name').annotate(
-        total=Count('id'),
-        fixed=Count('id', filter=models.Q(status='Fixed')),
-        pending=Count('id', filter=models.Q(status='Pending')),
-    ).order_by('-total')[:15]
+    # Group invalid or empty components into "Uncategorized" so the total sums perfectly
+    excluded_values = ['Unknown', 'Pending', 'Fixed', 'Feature', 'Improvement', '']
     
-    comp_labels = [c['component_name'] for c in component_stats]
+    component_stats_query = all_issues.annotate(
+        clean_component=Case(
+            When(Q(component_name__isnull=True) | Q(component_name__in=excluded_values), then=Value('Uncategorized')),
+            default='component_name',
+            output_field=CharField()
+        )
+    )
+    
+    # We remove the [:15] limit to ensure all data is accounted for.
+    component_stats = component_stats_query.values('clean_component').annotate(
+        total=Count('id'),
+        fixed=Count('id', filter=Q(status='Fixed')),
+        pending=Count('id', filter=Q(status='Pending')),
+    ).order_by('-total')
+    
+    comp_labels = [c['clean_component'] for c in component_stats]
     comp_total = [c['total'] for c in component_stats]
     comp_fixed = [c['fixed'] for c in component_stats]
     comp_pending = [c['pending'] for c in component_stats]
+    
+    # Ensure the total count shown on the chart matches exactly what is rendered
+    component_chart_total = sum(comp_total)
     
     # Calculate completion percentage for each component
     comp_completion = []
@@ -59,7 +76,7 @@ def get_chart_stats(sheet_name=None, connection=None):
 
     # Status distribution for donut chart
     status_stats = all_issues.values('status').annotate(count=Count('id'))
-    status_labels = [s['status'] for s in status_stats]
+    status_labels = [s['status'] or 'Unknown' for s in status_stats]
     status_values = [s['count'] for s in status_stats]
     
     # Priority distribution (if available)
@@ -67,22 +84,25 @@ def get_chart_stats(sheet_name=None, connection=None):
     priority_labels = [p['priority'] for p in priority_stats]
     priority_values = [p['count'] for p in priority_stats]
     
-    # Component stats - group by component_name only
-    # Filter out blank, None, and status values that were mistakenly saved as component names
-    excluded_components = ['', None, 'Fixed', 'Pending', 'Unknown', 'Feature', 'Improvement']
-    resource_stats = all_issues.exclude(
-        component_name__in=excluded_components
-    ).exclude(
-        component_name__isnull=True
-    ).exclude(
-        component_name__exact=''
-    ).values('component_name').annotate(
+    # Component stats - group by clean_component to ensure no data is lost
+    # Instead of excluding, we use the same cleaned logic
+    resource_stats = component_stats_query.values('clean_component').annotate(
         total=Count('id'),
-        fixed=Count('id', filter=models.Q(status='Fixed')),
-        pending=Count('id', filter=models.Q(status='Pending')),
-    ).order_by('-total')[:20]
+        fixed=Count('id', filter=Q(status='Fixed')),
+        pending=Count('id', filter=Q(status='Pending')),
+    ).order_by('-total')
     
-    total_resources = all_issues.values('component_name').distinct().count()
+    # Format resource_stats specifically for the template which expects 'component_name' key
+    formatted_resource_stats = []
+    for r in resource_stats:
+        formatted_resource_stats.append({
+            'component_name': r['clean_component'],
+            'total': r['total'],
+            'fixed': r['fixed'],
+            'pending': r['pending']
+        })
+    
+    total_resources = len(formatted_resource_stats)
     
     # Calculate total utilized hours
     total_utilized_hours = all_issues.aggregate(total=models.Sum('utilized_hours', default=0))['total'] or 0
@@ -103,12 +123,13 @@ def get_chart_stats(sheet_name=None, connection=None):
         'priority_values': priority_values,
         'total_resources': total_resources,
         'total_count': total_count,
+        'component_chart_total': component_chart_total,
         'fixed_count': fixed_count,
         'pending_count': pending_count,
         'unknown_count': unknown_count,
         'total_utilized_hours': round(total_utilized_hours, 1),
         'total_planned_hours': round(total_planned_hours, 1),
-        'resource_stats': list(resource_stats),
+        'resource_stats': formatted_resource_stats,
     }
 
 def dashboard(request):
@@ -210,7 +231,7 @@ def dashboard(request):
             )
         return export_issues_csv(export_issues)
                           
-    stats = get_chart_stats(sheet_name, current_connection)
+    stats = get_chart_stats(sheet_name, current_connection, status_filter, search_query)
         
     # Paginator for the active sheet
     # If sheet_name is None/empty, show all issues combined
@@ -539,7 +560,7 @@ def upload_csv(request):
             connection.save()
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                first_sheet = all_data[0]['sheet_name'] if all_data else 'Default'
+                first_sheet = '' # Default to 'all' basically by leaving it blank
                 sheet_names = sorted(list(set(d['sheet_name'] for d in all_data)))
                 return JsonResponse({
                     'success': True, 
@@ -709,7 +730,7 @@ def issues_list(request):
     
     sheet_names = list(dict.fromkeys(sheet_names))
     
-    stats = get_chart_stats(sheet_filter if sheet_filter else None, current_connection)
+    stats = get_chart_stats(sheet_filter if sheet_filter else None, current_connection, status_filter, search_query)
     
     context = {
         'issues': issues_page,
@@ -932,7 +953,12 @@ def delete_connection(request, connection_id):
         
         messages.success(request, f'Connection "{connection_name}" and its data have been deleted.')
     except SheetConnection.DoesNotExist:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Connection not found.'}, status=404)
         messages.error(request, 'Connection not found.')
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'message': f'Connection "{connection_name}" deleted.'})
     
     # If the request came from landing page, redirect back there
     if 'connections' not in referer and referer:
@@ -1009,6 +1035,8 @@ def dashboard_live_data(request):
     """API endpoint for live dashboard data updates."""
     connection_id = request.GET.get('connection')
     sheet_name = request.GET.get('sheet', None)
+    status_filter = request.GET.get('status', None)
+    search_query = request.GET.get('search', None)
     
     if sheet_name == '' or sheet_name == 'all':
         sheet_name = None
@@ -1021,23 +1049,30 @@ def dashboard_live_data(request):
     except SheetConnection.DoesNotExist:
         return JsonResponse({'error': 'Connection not found'}, status=404)
     
-    # Sync data for live connections or re-process for uploads
-    if connection.connection_type in ['google_sheets', 'excel_online', 'upload']:
-        try:
-            from .services import sync_sheet_data
-            sync_sheet_data(connection)
-        except Exception as e:
-            # Log error but still return current data
-            print(f"Live API sync error: {e}")
+    # We do NOT sync automatically on every single filter click to save time.
+    # Sync should be handled by a specific refresh interval or manual button.
+    # The previous code synced here which is slow.
     
     # Get fresh stats
-    stats = get_chart_stats(sheet_name, connection)
+    stats = get_chart_stats(sheet_name, connection, status_filter, search_query)
     
     # Get issues
     all_issues = Issue.objects.filter(connection=connection)
     if sheet_name and sheet_name != 'all':
         all_issues = all_issues.filter(sheet_name=sheet_name)
-    all_issues = all_issues.order_by('-created_at')[:15]
+    if status_filter:
+        all_issues = all_issues.filter(status=status_filter)
+    if search_query:
+        all_issues = all_issues.filter(
+            Q(issue_message__icontains=search_query) |
+            Q(component_name__icontains=search_query) |
+            Q(issue_id__icontains=search_query)
+        )
+    
+    # Optional pagination
+    page_number = request.GET.get('page', '1')
+    paginator = Paginator(all_issues.order_by('-created_at'), 15)
+    issues_page = paginator.get_page(page_number)
     
     issues_data = [{
         'issue_id': issue.issue_id,
@@ -1046,11 +1081,16 @@ def dashboard_live_data(request):
         'status': issue.status,
         'screenshot_url': issue.screenshot_url,
         'capanicus_comment': issue.capanicus_comment,
-        'mcm_comment': issue.mcm_comment
-    } for issue in all_issues]
+        'mcm_comment': issue.mcm_comment,
+        'sheet_name': issue.sheet_name
+    } for issue in issues_page]
     
     return JsonResponse({
         'stats': stats,
         'issues': issues_data,
+        'has_next': issues_page.has_next(),
+        'has_previous': issues_page.has_previous(),
+        'num_pages': paginator.num_pages,
+        'current_page': issues_page.number,
         'last_sync': connection.last_sync.isoformat() if connection.last_sync else None
     })
